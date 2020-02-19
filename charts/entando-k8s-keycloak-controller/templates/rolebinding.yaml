@@ -1,0 +1,10 @@
+apiVersion: authorization.openshift.io/v1
+kind: RoleBinding
+metadata:
+  name: default-is-admin
+roleRef:
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{.Release.Namespace}}
