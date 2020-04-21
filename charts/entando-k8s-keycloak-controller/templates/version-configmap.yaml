@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: entandokeycloakserver-controller-versions
-  labels:
-    draft: {{ default "draft-app" .Values.draft }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-data:
-  v1alpha1: {{ .Values.image.repository }}:{{ .Values.image.tag }}
