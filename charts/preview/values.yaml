@@ -1,3 +1,4 @@
+supportOpenshift: true
 preview:
   image:
     repository:
