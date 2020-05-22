@@ -57,7 +57,7 @@
         <connection>scm:git:git@github.com:${github.organization}/${project.artifactId}.git</connection>
         <developerConnection>scm:git:git@github.com:${github.organization}//${project.artifactId}.git
         </developerConnection>
-        <url>https://github.com/${github.organization}//${project.artifactId}/</url>
+        <url>https://github.com/${github.organization}/${project.artifactId}/</url>
         <tag>HEAD</tag>
     </scm>
     <properties>

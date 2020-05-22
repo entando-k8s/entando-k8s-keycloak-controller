@@ -17,7 +17,11 @@
 package org.entando.kubernetes.controller.keycloakserver.inprocesstests;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -104,6 +108,13 @@ public class DeployKeycloakWithoutDatabaseTest implements InProcessTestUtil, Flu
         verify(client.pods(), never()).runToCompletion(keycloakSchemaJobCaptor.capture());
         //And the DB_VENDOR is set to h2
         assertThat(theVariableNamed("DB_VENDOR").on(theContainerNamed("server-container").on(deployment)), is("h2"));
+        //verify that a persistent volume claim was created for the h2 database:
+        assertTrue(this.client.persistentVolumeClaims()
+                .loadPersistentVolumeClaim(keycloakServer, MY_KEYCLOAK + "-server-pvc") != null);
+        assertThat(theVolumeNamed(MY_KEYCLOAK + "-server-volume").on(deployment).getPersistentVolumeClaim().getClaimName(),
+                is(MY_KEYCLOAK + "-server-pvc"));
+        assertThat(theVolumeMountNamed(MY_KEYCLOAK + "-server-volume").on(theContainerNamed("server-container").on(deployment)).getMountPath(),
+                is("/opt/jboss/keycloak/standalone/data"));
     }
 
 }
