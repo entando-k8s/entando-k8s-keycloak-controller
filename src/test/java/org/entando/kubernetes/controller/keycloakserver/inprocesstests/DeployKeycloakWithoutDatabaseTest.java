@@ -113,7 +113,8 @@ public class DeployKeycloakWithoutDatabaseTest implements InProcessTestUtil, Flu
                 .loadPersistentVolumeClaim(keycloakServer, MY_KEYCLOAK + "-server-pvc") != null);
         assertThat(theVolumeNamed(MY_KEYCLOAK + "-server-volume").on(deployment).getPersistentVolumeClaim().getClaimName(),
                 is(MY_KEYCLOAK + "-server-pvc"));
-        assertThat(theVolumeMountNamed(MY_KEYCLOAK + "-server-volume").on(theContainerNamed("server-container").on(deployment)).getMountPath(),
+        assertThat(
+                theVolumeMountNamed(MY_KEYCLOAK + "-server-volume").on(theContainerNamed("server-container").on(deployment)).getMountPath(),
                 is("/opt/jboss/keycloak/standalone/data"));
     }
 
