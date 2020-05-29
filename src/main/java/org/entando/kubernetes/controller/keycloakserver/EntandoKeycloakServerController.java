@@ -33,7 +33,6 @@ import org.entando.kubernetes.controller.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.common.KeycloakConnectionSecret;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
-import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 
 public class EntandoKeycloakServerController extends AbstractDbAwareController<EntandoKeycloakServer> {
@@ -58,11 +57,8 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
     @Override
     protected void synchronizeDeploymentState(EntandoKeycloakServer newEntandoKeycloakServer) {
         // Create database for Keycloak
-        DatabaseServiceResult databaseServiceResult = null;
-        if (newEntandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.NONE) != DbmsVendor.NONE) {
-            databaseServiceResult = prepareDatabaseService(newEntandoKeycloakServer, newEntandoKeycloakServer.getSpec().getDbms().get(),
+        DatabaseServiceResult databaseServiceResult = prepareDatabaseService(newEntandoKeycloakServer, newEntandoKeycloakServer.getSpec().getDbms().get(),
                     "db");
-        }
         // Create the Keycloak service using the provided database
         KeycloakDeployable keycloakDeployable = new KeycloakDeployable(newEntandoKeycloakServer, databaseServiceResult);
         DeployCommand<ServiceDeploymentResult> keycloakCommand = new DeployCommand<>(keycloakDeployable);
