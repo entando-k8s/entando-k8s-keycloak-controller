@@ -58,11 +58,8 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
     @Override
     protected void synchronizeDeploymentState(EntandoKeycloakServer newEntandoKeycloakServer) {
         // Create database for Keycloak
-        DatabaseServiceResult databaseServiceResult = null;
-        if (newEntandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.NONE) != DbmsVendor.NONE) {
-            databaseServiceResult = prepareDatabaseService(newEntandoKeycloakServer, newEntandoKeycloakServer.getSpec().getDbms().get(),
-                    "db");
-        }
+        DatabaseServiceResult databaseServiceResult = prepareDatabaseService(newEntandoKeycloakServer,
+                newEntandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.EMBEDDED), "db");
         // Create the Keycloak service using the provided database
         KeycloakDeployable keycloakDeployable = new KeycloakDeployable(newEntandoKeycloakServer, databaseServiceResult);
         DeployCommand<ServiceDeploymentResult> keycloakCommand = new DeployCommand<>(keycloakDeployable);

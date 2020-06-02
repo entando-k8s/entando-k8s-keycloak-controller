@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 
-@Tags({@Tag("end-to-end"), @Tag("inter-process")})
+@Tags({@Tag("oracle-end-to-end"), @Tag("inter-process")})
 public class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKeycloakServerBaseIT {
 
     @Test

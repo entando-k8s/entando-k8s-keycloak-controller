@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 
 @Tags({@Tag("end-to-end"), @Tag("inter-process"), @Tag("smoke-test")})
-public class AddEntandoKeycloakServerWithEmbeddedDatabaseIT extends AddEntandoKeycloakServerBaseIT implements FluentTraversals {
+public class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeycloakServerBaseIT implements FluentTraversals {
 
     @Test
     public void create() {
