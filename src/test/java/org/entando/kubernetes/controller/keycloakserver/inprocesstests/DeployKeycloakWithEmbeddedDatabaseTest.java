@@ -58,7 +58,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 //in execute component test
 @Tag("in-process")
-public class DeployKeycloakWithoutDatabaseTest implements InProcessTestUtil, FluentTraversals {
+public class DeployKeycloakWithEmbeddedDatabaseTest implements InProcessTestUtil, FluentTraversals {
 
     public static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
     private static final String MY_KEYCLOAK_DB_SECRET = MY_KEYCLOAK + "-db-secret";
@@ -116,6 +116,7 @@ public class DeployKeycloakWithoutDatabaseTest implements InProcessTestUtil, Flu
         assertThat(
                 theVolumeMountNamed(MY_KEYCLOAK + "-server-volume").on(theContainerNamed("server-container").on(deployment)).getMountPath(),
                 is("/opt/jboss/keycloak/standalone/data"));
+        verifyThatAllVolumesAreMapped(keycloakServer, client, deployment);
     }
 
 }
