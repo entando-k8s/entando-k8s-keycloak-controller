@@ -75,7 +75,7 @@ public class KeycloakDeployable implements IngressingDeployable<ServiceDeploymen
 
     @Override
     public Optional<Long> getFileSystemUserAndGroupId() {
-        return Optional.of(1000l);
+        return Optional.of(1000L);
     }
 
     @Override
