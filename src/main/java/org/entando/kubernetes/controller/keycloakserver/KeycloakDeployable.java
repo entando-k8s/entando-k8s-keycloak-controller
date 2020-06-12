@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.apache.commons.io.IOUtils;
 import org.entando.kubernetes.controller.KubeUtils;
 import org.entando.kubernetes.controller.ServiceDeploymentResult;
@@ -70,6 +71,11 @@ public class KeycloakDeployable implements IngressingDeployable<ServiceDeploymen
     @Override
     public boolean hasContainersExpectingSchemas() {
         return keycloakServer.getSpec().getDbms().map(v -> v != DbmsVendor.NONE).orElse(false);
+    }
+
+    @Override
+    public Optional<Long> getFileSystemUserAndGroupId() {
+        return Optional.of(1000L);
     }
 
     @Override
