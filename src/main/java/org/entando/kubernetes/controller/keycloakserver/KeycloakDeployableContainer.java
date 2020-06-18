@@ -33,12 +33,15 @@ import org.entando.kubernetes.controller.database.DbmsDockerVendorStrategy;
 import org.entando.kubernetes.controller.spi.DatabasePopulator;
 import org.entando.kubernetes.controller.spi.DbAware;
 import org.entando.kubernetes.controller.spi.IngressingContainer;
+import org.entando.kubernetes.controller.spi.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.PersistentVolumeAware;
 import org.entando.kubernetes.controller.spi.TlsAware;
 import org.entando.kubernetes.model.DbmsVendor;
+import org.entando.kubernetes.model.EntandoDeploymentSpec;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 
-public class KeycloakDeployableContainer implements IngressingContainer, DbAware, TlsAware, PersistentVolumeAware {
+public class KeycloakDeployableContainer implements IngressingContainer, DbAware, TlsAware, PersistentVolumeAware,
+        ParameterizableContainer {
 
     private static final String DEFAULT_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
 
@@ -163,5 +166,10 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public String getVolumeMountPath() {
         return "/opt/jboss/keycloak/standalone/data";
+    }
+
+    @Override
+    public EntandoDeploymentSpec getCustomResourceSpec() {
+        return keycloakServer.getSpec();
     }
 }
