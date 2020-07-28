@@ -48,10 +48,15 @@ public class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends Ad
                 .endSpec().build();
         SampleWriter.writeSample(keycloakServer, "keycloak-with-external-postgresql-db");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
-        //Then I expect to see
+        //Then I expect to see a valid keycloak deployment
         verifyKeycloakDeployment();
         assertThat(client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
                 KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
                 .get(), Matchers.is(nullValue()));
+        //And recreating the deployment still succeeds because it regenerates all passwords
+        clearNamespace();
+        helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
+        //Then I expect to see
+        verifyKeycloakDeployment();
     }
 }
