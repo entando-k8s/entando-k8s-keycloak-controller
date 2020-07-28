@@ -55,11 +55,10 @@ public class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends Ad
         assertThat(client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
                 KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
                 .get(), Matchers.is(nullValue()));
-        //And recreating the deployment still succeeds because it regenerates all passwords
+        //And recreating the deployment still succeeds because it regenerates all passwords for database schemas
         clearNamespace();
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_FORCE_DB_PASSWORD_RESET.getJvmSystemProperty(), "true");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
-        //Then I expect to see
         verifyKeycloakDeployment();
     }
 
