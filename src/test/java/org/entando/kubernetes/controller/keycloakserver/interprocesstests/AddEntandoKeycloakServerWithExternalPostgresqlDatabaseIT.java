@@ -21,10 +21,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 
 import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
+import org.entando.kubernetes.controller.integrationtest.support.ClusterInfrastructureIntegrationTestHelper;
+import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
+import org.entando.kubernetes.controller.integrationtest.support.EntandoPluginIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
+import org.entando.kubernetes.model.app.EntandoApp;
+import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
+import org.entando.kubernetes.model.infrastructure.EntandoClusterInfrastructure;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
+import org.entando.kubernetes.model.plugin.EntandoPlugin;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -56,7 +63,9 @@ public class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends Ad
                 KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
                 .get(), Matchers.is(nullValue()));
         //And recreating the deployment still succeeds because it regenerates all passwords for database schemas
-        clearNamespace();
+        //Reset all namespaces as they depend on previously created Keycloak clients that are now invalid
+        helper.setTextFixture(deleteAll(EntandoKeycloakServer.class)
+                .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE));
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_FORCE_DB_PASSWORD_RESET.getJvmSystemProperty(), "true");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
         verifyKeycloakDeployment();

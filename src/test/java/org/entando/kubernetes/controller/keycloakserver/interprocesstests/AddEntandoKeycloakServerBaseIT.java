@@ -64,17 +64,6 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_NAMESPACE_TO_OBSERVE.getJvmSystemProperty(),
                 TestFixturePreparation.ENTANDO_CONTROLLERS_NAMESPACE);
         client = helper.getClient();
-        clearNamespace();
-        await().atMost(2, TimeUnit.MINUTES).ignoreExceptions().pollInterval(10, TimeUnit.SECONDS).until(this::killPgPod);
-        EntandoKeycloakServerController controller = new EntandoKeycloakServerController(client, false);
-        if (EntandoOperatorTestConfig.getTestTarget() == TestTarget.K8S) {
-            helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE);
-        } else {
-            helper.keycloak().listenAndRespondWithStartupEvent(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE, controller::onStartup);
-        }
-    }
-
-    protected void clearNamespace() {
         //Reset all namespaces as they depend on previously created Keycloak clients that are now invalid
         helper.setTextFixture(deleteAll(EntandoKeycloakServer.class)
                 .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
@@ -87,6 +76,13 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
                 .deleteAll(EntandoPlugin.class)
                 .fromNamespace(EntandoPluginIntegrationTestHelper.TEST_PLUGIN_NAMESPACE)
         );
+        await().atMost(2, TimeUnit.MINUTES).ignoreExceptions().pollInterval(10, TimeUnit.SECONDS).until(this::killPgPod);
+        EntandoKeycloakServerController controller = new EntandoKeycloakServerController(client, false);
+        if (EntandoOperatorTestConfig.getTestTarget() == TestTarget.K8S) {
+            helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE);
+        } else {
+            helper.keycloak().listenAndRespondWithStartupEvent(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE, controller::onStartup);
+        }
     }
 
     private boolean killPgPod() {
