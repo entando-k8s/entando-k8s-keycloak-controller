@@ -432,7 +432,10 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
         assertThat(thePortNamed(DB_PORT).on(theDbContainer).getContainerPort(), is(3306));
         assertThat(thePortNamed(DB_PORT).on(theDbContainer).getProtocol(), is(TCP));
         //And that uses the image reflecting the custom registry and Entando image version specified
-        assertThat(theDbContainer.getImage(), is("docker.io/centos/mysql-57-centos7:latest"));
+        //Please note: the docker.io and 6.0.0 my seem counter intuitive, but it indicates that we are
+        //actually controlling the image as intended
+        //With the correct version in the configmap this will work as planned
+        assertThat(theDbContainer.getImage(), is("docker.io/entando/mysql-57-centos7:6.0.0"));
     }
 
     @Test
