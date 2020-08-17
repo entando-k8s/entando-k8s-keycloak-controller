@@ -45,7 +45,6 @@ public class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEnta
                 .withImageName("entando/entando-keycloak")
                 .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(POSTGRESQL)
-                .withEntandoImageVersion("6.0.5")
                 .withDefault(true)
                 .endSpec().build();
         SampleWriter.writeSample(keycloakServer, "keycloak-with-embedded-postgresql-db");
