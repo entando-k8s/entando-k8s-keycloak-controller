@@ -65,12 +65,31 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         DeployCommand<ServiceDeploymentResult> keycloakCommand = new DeployCommand<>(keycloakDeployable);
         ServiceDeploymentResult serviceDeploymentResult = keycloakCommand.execute(k8sClient, Optional.of(keycloakClient));
         if (keycloakCommand.getPod() != null) {
+            String secretName = EntandoOperatorConfig.getDefaultKeycloakSecretName();
+            Secret kcSecret = k8sClient.secrets().loadSecret(
+                    newEntandoKeycloakServer, KeycloakDeployableContainer.secretName(newEntandoKeycloakServer));
+            KeycloakConnectionConfig keycloakConnectionConfig = new KeycloakConnectionSecret(kcSecret);
+            overwriteKeycloakSecret(serviceDeploymentResult, newEntandoKeycloakServer.getMetadata().getName() + "-connection-secret",
+                    keycloakConnectionConfig);
             if (newEntandoKeycloakServer.getSpec().isDefault()) {
-                copySecretToLocalNamespace(newEntandoKeycloakServer, serviceDeploymentResult);
+                overwriteKeycloakSecret(serviceDeploymentResult, secretName, keycloakConnectionConfig);
             }
             ensureKeycloakRealm();
         }
         k8sClient.entandoResources().updateStatus(newEntandoKeycloakServer, keycloakCommand.getStatus());
+    }
+
+    private void overwriteKeycloakSecret(ServiceDeploymentResult serviceDeploymentResult, String secretName,
+            KeycloakConnectionConfig keycloakConnectionConfig) {
+        k8sClient.secrets().overwriteControllerSecret(new SecretBuilder()
+                .withNewMetadata()
+                .withName(secretName)
+                .endMetadata()
+                .addToStringData(KubeUtils.USERNAME_KEY, keycloakConnectionConfig.getUsername())
+                .addToStringData(KubeUtils.PASSSWORD_KEY, keycloakConnectionConfig.getPassword())
+                .addToStringData(KubeUtils.URL_KEY, serviceDeploymentResult.getExternalBaseUrl())
+                .addToStringData(KubeUtils.INTERNAL_URL_KEY, serviceDeploymentResult.getInternalBaseUrl())
+                .build());
     }
 
     private void ensureKeycloakRealm() {
@@ -81,17 +100,4 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         keycloakClient.ensureRealm(KubeUtils.ENTANDO_KEYCLOAK_REALM);
     }
 
-    private void copySecretToLocalNamespace(EntandoKeycloakServer keycloakSever, ServiceDeploymentResult serviceDeploymentResult) {
-        Secret kcSecret = k8sClient.secrets().loadSecret(keycloakSever, KeycloakDeployableContainer.secretName(keycloakSever));
-        KeycloakConnectionConfig keycloakConnectionConfig = new KeycloakConnectionSecret(kcSecret);
-        k8sClient.secrets().overwriteControllerSecret(new SecretBuilder()
-                .withNewMetadata()
-                .withName(EntandoOperatorConfig.getDefaultKeycloakSecretName())
-                .endMetadata()
-                .addToStringData(KubeUtils.USERNAME_KEY, keycloakConnectionConfig.getUsername())
-                .addToStringData(KubeUtils.PASSSWORD_KEY, keycloakConnectionConfig.getPassword())
-                .addToStringData(KubeUtils.URL_KEY, serviceDeploymentResult.getExternalBaseUrl())
-                .addToStringData(KubeUtils.INTERNAL_URL_KEY, serviceDeploymentResult.getInternalBaseUrl())
-                .build());
-    }
 }
