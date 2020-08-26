@@ -74,7 +74,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
             if (newEntandoKeycloakServer.getSpec().isDefault()) {
                 overwriteKeycloakSecret(serviceDeploymentResult, secretName, keycloakConnectionConfig);
             }
-            ensureKeycloakRealm();
+            ensureKeycloakRealm(keycloakConnectionConfig);
         }
         k8sClient.entandoResources().updateStatus(newEntandoKeycloakServer, keycloakCommand.getStatus());
     }
@@ -92,11 +92,10 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
                 .build());
     }
 
-    private void ensureKeycloakRealm() {
-        KeycloakConnectionConfig keycloakDeploymentResult = k8sClient.entandoResources().findKeycloak(Optional::empty);
-        logger.severe("Attempting to log into Keycloak at " + keycloakDeploymentResult.determineBaseUrl());
-        keycloakClient.login(keycloakDeploymentResult.determineBaseUrl(), keycloakDeploymentResult.getUsername(),
-                keycloakDeploymentResult.getPassword());
+    private void ensureKeycloakRealm(KeycloakConnectionConfig keycloakConnectionConfig) {
+        logger.severe("Attempting to log into Keycloak at " + keycloakConnectionConfig.determineBaseUrl());
+        keycloakClient.login(keycloakConnectionConfig.determineBaseUrl(), keycloakConnectionConfig.getUsername(),
+                keycloakConnectionConfig.getPassword());
         keycloakClient.ensureRealm(KubeUtils.ENTANDO_KEYCLOAK_REALM);
     }
 
