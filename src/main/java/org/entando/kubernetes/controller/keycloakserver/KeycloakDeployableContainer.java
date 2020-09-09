@@ -30,6 +30,7 @@ import org.entando.kubernetes.controller.creators.DeploymentCreator;
 import org.entando.kubernetes.controller.database.DatabaseSchemaCreationResult;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
 import org.entando.kubernetes.controller.database.DbmsDockerVendorStrategy;
+import org.entando.kubernetes.controller.spi.ConfigurableResourceContainer;
 import org.entando.kubernetes.controller.spi.DatabasePopulator;
 import org.entando.kubernetes.controller.spi.DbAware;
 import org.entando.kubernetes.controller.spi.IngressingContainer;
@@ -41,7 +42,7 @@ import org.entando.kubernetes.model.EntandoDeploymentSpec;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 
 public class KeycloakDeployableContainer implements IngressingContainer, DbAware, TlsAware, PersistentVolumeAware,
-        ParameterizableContainer {
+        ParameterizableContainer, ConfigurableResourceContainer {
 
     private static final String DEFAULT_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
 

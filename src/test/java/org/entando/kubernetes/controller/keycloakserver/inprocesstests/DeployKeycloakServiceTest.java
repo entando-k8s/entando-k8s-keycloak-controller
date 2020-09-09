@@ -71,6 +71,7 @@ import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
+import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -104,7 +105,9 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     private static final String DB_PASSWORD = "DB_PASSWORD";
     private static final String MY_KEYCLOAK_DATABASE = "my_keycloak_db";
     private static final String AUTH = "/auth";
-    private final EntandoKeycloakServer keycloakServer = newEntandoKeycloakServer();
+    private final EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder(newEntandoKeycloakServer())
+            .editSpec().withNewResourceRequirements().withMemoryLimit("7Gi").endResourceRequirements().endSpec()
+            .build();
     @Spy
     private final SimpleK8SClient<EntandoResourceClientDouble> client = new SimpleK8SClientDouble();
     @Mock
@@ -425,6 +428,8 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
         assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
                 containsString(DeploymentCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
                         + "/ca.crt"));
+
+        assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));
     }
 
     private void verifyTheDbContainer(Container theDbContainer) {
