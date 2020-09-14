@@ -59,6 +59,10 @@ public class KeycloakDeployable implements IngressingDeployable<ServiceDeploymen
         realmBase = buildRealmJson();
     }
 
+    public Secret getKeycloakAdminSecret() {
+        return keycloakAdminSecret;
+    }
+
     private Secret buildRealmJson() {
         try {
             return new SecretBuilder().withNewMetadata().withName(this.keycloakServer.getMetadata().getName() + "-realm").endMetadata()

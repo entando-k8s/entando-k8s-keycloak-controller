@@ -66,8 +66,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         ServiceDeploymentResult serviceDeploymentResult = keycloakCommand.execute(k8sClient, Optional.of(keycloakClient));
         if (keycloakCommand.getPod() != null) {
             String secretName = EntandoOperatorConfig.getDefaultKeycloakSecretName();
-            Secret kcSecretInDeploymentNamespace = k8sClient.secrets().loadSecret(
-                    newEntandoKeycloakServer, KeycloakDeployableContainer.secretName(newEntandoKeycloakServer));
+            Secret kcSecretInDeploymentNamespace = keycloakDeployable.getKeycloakAdminSecret();
             KeycloakConnectionConfig keycloakConnectionConfig = new KeycloakConnectionSecret(kcSecretInDeploymentNamespace);
             Secret localKcSecret = overwriteKeycloakSecret(serviceDeploymentResult,
                     newEntandoKeycloakServer.getMetadata().getName() + "-connection-secret",
