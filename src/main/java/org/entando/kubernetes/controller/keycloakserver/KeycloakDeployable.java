@@ -75,7 +75,7 @@ public class KeycloakDeployable implements IngressingDeployable<ServiceDeploymen
 
     @Override
     public boolean hasContainersExpectingSchemas() {
-        return keycloakServer.getSpec().getDbms().map(v -> v != DbmsVendor.NONE).orElse(false);
+        return keycloakServer.getSpec().getDbms().map(v -> v != DbmsVendor.NONE && v != DbmsVendor.EMBEDDED).orElse(false);
     }
 
     @Override
