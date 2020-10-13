@@ -102,7 +102,7 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     }
 
     protected void verifyKeycloakDeployment() {
-        String http = TlsHelper.getDefaultProtocol();
+        String http = HttpTestHelper.getDefaultProtocol();
         await().atMost(15, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).ignoreExceptions().until(() -> HttpTestHelper
                 .statusOk(http + "://" + KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix()
                         + "/auth"));

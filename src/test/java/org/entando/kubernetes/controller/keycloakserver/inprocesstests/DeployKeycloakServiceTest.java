@@ -69,6 +69,7 @@ import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoRe
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.DeployableContainer;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
@@ -196,9 +197,9 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
                 SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME);
         verify(client.secrets(), atLeast(1)).createSecretIfAbsent(eq(newEntandoKeycloakServer), trustStoreSecretCaptor.capture());
         Secret trustStoreSecret = trustStoreSecretCaptor.getValue();
-        assertThat(theKey(DeploymentCreator.TRUST_STORE_FILE).on(trustStoreSecret), is(TlsHelper.getInstance().getTrustStoreBase64()));
+        assertThat(theKey(SecretCreator.TRUST_STORE_FILE).on(trustStoreSecret), is(TlsHelper.getInstance().getTrustStoreBase64()));
 
-        byte[] decode = Base64.getDecoder().decode(trustStoreSecret.getData().get(DeploymentCreator.TRUST_STORE_FILE).getBytes());
+        byte[] decode = Base64.getDecoder().decode(trustStoreSecret.getData().get(SecretCreator.TRUST_STORE_FILE).getBytes());
         KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
         ks.load(new ByteArrayInputStream(decode), TlsHelper.getInstance().getTrustStorePassword().toCharArray());
         assertNotNull(ks.getCertificate("ca.crt"));
@@ -418,15 +419,15 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
         assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
         assertThat(theVolumeMountNamed(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
                         .getMountPath(),
-                is(DeploymentCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+                is(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
         assertThat(theVolumeMountNamed(MY_KEYCLOAK + "-realm-volume").on(theServerContainer).getMountPath(),
-                is(DeploymentCreator.ENTANDO_SECRET_MOUNTS_ROOT + "/" + MY_KEYCLOAK + "-realm"));
+                is(DeployableContainer.ENTANDO_SECRET_MOUNTS_ROOT + "/" + MY_KEYCLOAK + "-realm"));
         assertThat(theVariableNamed("JAVA_TOOL_OPTIONS").on(theServerContainer),
                 is("-Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile "
                         + "-Dkeycloak.migration.file=/etc/entando/connectionconfigs/my-keycloak-realm/realm.json "
                         + "-Dkeycloak.migration.strategy=OVERWRITE_EXISTING"));
         assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
-                containsString(DeploymentCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
+                containsString(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
                         + "/ca.crt"));
 
         assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));
