@@ -31,10 +31,10 @@ import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 
 @Tags({@Tag("oracle-end-to-end"), @Tag("inter-process")})
-public class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKeycloakServerBaseIT {
+class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKeycloakServerBaseIT {
 
     @Test
-    public void create() {
+    void create() {
         helper.externalDatabases()
                 .prepareExternalOracleDatabase(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE,
                         snakeCaseOf(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db"));

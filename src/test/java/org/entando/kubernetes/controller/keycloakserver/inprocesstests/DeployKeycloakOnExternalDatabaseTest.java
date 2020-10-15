@@ -51,6 +51,7 @@ import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -59,10 +60,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 //in execute component test
-@Tag("in-process")
-public class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentTraversals {
+@Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
+class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentTraversals {
 
-    public static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
+    static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
     private static final String MY_KEYCLOAK_DB_SECRET = MY_KEYCLOAK + "-db-secret";
     private final EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder(newEntandoKeycloakServer()).editSpec()
             .withDbms(DbmsVendor.ORACLE)
@@ -76,7 +77,7 @@ public class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, 
 
     @BeforeEach
     @SuppressWarnings("unchecked")
-    public void setEntandoDatabaseServiceNamespace() {
+    void setEntandoDatabaseServiceNamespace() {
         externalDatabase.getMetadata().setNamespace(keycloakServer.getMetadata().getNamespace());
         client.entandoResources().createOrPatchEntandoResource(externalDatabase);
         client.entandoResources().createOrPatchEntandoResource(keycloakServer);
@@ -88,7 +89,7 @@ public class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, 
     }
 
     @Test
-    public void testSecrets() {
+    void testSecrets() {
         //Given I have created an EntandoDatabaseService custom resource
         new CreateExternalServiceCommand(externalDatabase).execute(client);
         //When I deploy a EntandoKeycloakServer
@@ -102,7 +103,7 @@ public class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, 
     }
 
     @Test
-    public void testDeployment() {
+    void testDeployment() {
         //Given I have created an EntandoDatabaseService custom resource
         new CreateExternalServiceCommand(externalDatabase).execute(client);
         //And Keycloak is receiving requests

@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import org.entando.kubernetes.controller.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.common.TlsHelper;
 import org.entando.kubernetes.controller.integrationtest.support.ClusterInfrastructureIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig;
@@ -102,7 +101,7 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     }
 
     protected void verifyKeycloakDeployment() {
-        String http = TlsHelper.getDefaultProtocol();
+        String http = HttpTestHelper.getDefaultProtocol();
         await().atMost(15, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).ignoreExceptions().until(() -> HttpTestHelper
                 .statusOk(http + "://" + KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix()
                         + "/auth"));
