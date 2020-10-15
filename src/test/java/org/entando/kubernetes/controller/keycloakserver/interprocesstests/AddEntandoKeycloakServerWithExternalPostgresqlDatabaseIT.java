@@ -21,28 +21,21 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 
 import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
-import org.entando.kubernetes.controller.integrationtest.support.ClusterInfrastructureIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.EntandoPluginIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
-import org.entando.kubernetes.model.app.EntandoApp;
-import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
-import org.entando.kubernetes.model.infrastructure.EntandoClusterInfrastructure;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
-import org.entando.kubernetes.model.plugin.EntandoPlugin;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 
-@Tags({@Tag("end-to-end"), @Tag("inter-process")})
-public class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntandoKeycloakServerBaseIT {
+@Tags({@Tag("end-to-end"), @Tag("inter-process"), @Tag("post-deployment")})
+class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntandoKeycloakServerBaseIT {
 
     @Test
-    public void create() {
+    void create() {
         helper.externalDatabases().prepareExternalPostgresqlDatabase(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE,
                 EntandoKeycloakServer.class.getSimpleName());
         //When I create a EntandoKeycloakServer and I specify it to use PostgreSQL

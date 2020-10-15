@@ -37,6 +37,7 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -47,7 +48,6 @@ import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -55,12 +55,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Base64;
 import java.util.Map;
-import org.apache.commons.io.IOUtils;
 import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.KubeUtils;
 import org.entando.kubernetes.controller.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.common.TlsHelper;
-import org.entando.kubernetes.controller.creators.DeploymentCreator;
 import org.entando.kubernetes.controller.creators.SecretCreator;
 import org.entando.kubernetes.controller.inprocesstest.InProcessTestUtil;
 import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.LabeledArgumentCaptor;
@@ -69,13 +67,13 @@ import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoRe
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
-import org.entando.kubernetes.controller.spi.DeployableContainer;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -84,8 +82,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 //in execute component test
-@Tag("in-process")
-public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
+@Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
+class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
 
     private static final String MY_KEYCLOAK_ADMIN_SECRET = MY_KEYCLOAK + "-admin-secret";
     private static final String MY_KEYCLOAK_SERVER = MY_KEYCLOAK + "-server";
@@ -106,6 +104,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     private static final String DB_PASSWORD = "DB_PASSWORD";
     private static final String MY_KEYCLOAK_DATABASE = "my_keycloak_db";
     private static final String AUTH = "/auth";
+    private static final String MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD = "myexistingkeycloakdadminpassowrd";
     private final EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder(newEntandoKeycloakServer())
             .editSpec().withNewResourceRequirements().withMemoryLimit("7Gi").endResourceRequirements().endSpec()
             .build();
@@ -116,7 +115,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     private EntandoKeycloakServerController keycloakServerController;
 
     @AfterEach
-    public void resetSystemProps() {
+    void resetSystemProps() {
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_PATH_TO_TLS_KEYPAIR.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty());
@@ -124,7 +123,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
 
     @BeforeEach
     @SuppressWarnings("unchecked")
-    public void prepare() {
+    void prepare() {
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
                 "src/test/resources/tls/ampie.dynu.net/ca.crt");
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_PATH_TO_TLS_KEYPAIR.getJvmSystemProperty(),
@@ -138,7 +137,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     }
 
     @Test
-    public void testSecrets() throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
+    void testSecrets() throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         //Given I have an EntandoKeycloakServer custom resource with MySQL as database
         final EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
         //And the trust cert has been configured correctly
@@ -177,14 +176,6 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
         assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakAdminSecret), is(not(emptyOrNullString())));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakAdminSecret), is(MY_KEYCLOAK));
 
-        //And a K8S Secret was created in the Keycloak deployment's namespace with a name that reflects the EntandoKeycloakServer and the
-        // fact
-        // that it is Keycloak admin secret
-        NamedArgumentCaptor<Secret> realmSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK + "-realm");
-        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), realmSecretCaptor.capture());
-        Secret realmSecret = realmSecretCaptor.getValue();
-        assertThat(theKey("realm.json").on(realmSecret), is(IOUtils.resourceToString("/realm-base.json", StandardCharsets.UTF_8)));
-
         //And a K8S Secret was created in the Keycloak deployment's namespace containing the CA keystore
         NamedArgumentCaptor<Secret> tlsSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK + "-tls-secret");
         verify(client.secrets(), atLeast(1)).createSecretIfAbsent(eq(newEntandoKeycloakServer), tlsSecretCaptor.capture());
@@ -214,7 +205,51 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     }
 
     @Test
-    public void testService() {
+    void testWithExistingAdminSecret() {
+        //Given I have an EntandoKeycloakServer custom resource with MySQL as database
+        final EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
+        //But I already have a Keycloak admin secret associated with this EntandoKeycloakServer
+        Secret existingAdminSecret = new SecretBuilder().withNewMetadata()
+                .withName(newEntandoKeycloakServer.getMetadata().getName() + "-connection-secret")
+                .endMetadata()
+                .addToStringData(KubeUtils.USERNAME_KEY, MY_KEYCLOAK_ADMIN_USERNAME)
+                .addToStringData(KubeUtils.PASSSWORD_KEY, MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD).build();
+        client.secrets().overwriteControllerSecret(existingAdminSecret);
+
+        // WHen I have deploya the EntandoKeycloakServer
+        keycloakServerController.onStartup(new StartupEvent());
+
+        //A K8S Secret was created in the Keycloak deployment's namespace with a name that reflects the EntandoKeycloakServer and the
+        // fact
+        // that it is Keycloak admin secret
+        NamedArgumentCaptor<Secret> keycloakAdminSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_ADMIN_SECRET);
+        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), keycloakAdminSecretCaptor.capture());
+        Secret keycloakAdminSecret = keycloakAdminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(keycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakAdminSecret), is(not(emptyOrNullString())));
+        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakAdminSecret), is(MY_KEYCLOAK));
+
+        //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
+        // Admin Secret, with the same state as the existing admin secret
+        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class, DEFAULT_KEYCLOAK_ADMIN_SECRET);
+        verify(client.secrets()).overwriteControllerSecret(localKeycloakAdminSecretCaptor.capture());
+        Secret localKeycloakAdminSecret = localKeycloakAdminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(localKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(localKeycloakAdminSecret), is(MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD));
+
+        //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
+        // Admin Secret, with the same state as the existing admin secret
+        NamedArgumentCaptor<Secret> myLocalKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
+                existingAdminSecret.getMetadata().getName());
+        //twice because the test also calls it
+        verify(client.secrets(), times(2)).overwriteControllerSecret(myLocalKeycloakAdminSecretCaptor.capture());
+        Secret myLocalKeycloakAdminSecret = myLocalKeycloakAdminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(myLocalKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(myLocalKeycloakAdminSecret), is(MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD));
+    }
+
+    @Test
+    void testService() {
         //Given I have an EntandoKeycloakServer custom resource with MySQL as database
         EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
         //And that K8S is up and receiving Service requests
@@ -261,7 +296,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     }
 
     @Test
-    public void testIngress() {
+    void testIngress() {
         //Given I have an EntandoKeycloakServer custom resource with MySQL as database
         EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
         //And that K8S is up and receiving Ingress requests
@@ -290,7 +325,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     }
 
     @Test
-    public void testSchemaPreparation() {
+    void testSchemaPreparation() {
         //Given I have an EntandoKeycloakServer custom resource with MySQL as database
         EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
 
@@ -333,7 +368,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     }
 
     @Test
-    public void testDeployment() {
+    void testDeployment() {
         //Given we use version 6.0.0 of images by default
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty(), "6.0.0");
         //And the trust cert has been configured correctly
@@ -420,12 +455,6 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
         assertThat(theVolumeMountNamed(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
                         .getMountPath(),
                 is(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
-        assertThat(theVolumeMountNamed(MY_KEYCLOAK + "-realm-volume").on(theServerContainer).getMountPath(),
-                is(DeployableContainer.ENTANDO_SECRET_MOUNTS_ROOT + "/" + MY_KEYCLOAK + "-realm"));
-        assertThat(theVariableNamed("JAVA_TOOL_OPTIONS").on(theServerContainer),
-                is("-Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile "
-                        + "-Dkeycloak.migration.file=/etc/entando/connectionconfigs/my-keycloak-realm/realm.json "
-                        + "-Dkeycloak.migration.strategy=OVERWRITE_EXISTING"));
         assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
                 containsString(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
                         + "/ca.crt"));
@@ -445,7 +474,7 @@ public class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTrave
     }
 
     @Test
-    public void testPersistentVolumeClaims() {
+    void testPersistentVolumeClaims() {
         //Given I have  a Keycloak server
         EntandoKeycloakServer newEntandoKeycloakServer = this.keycloakServer;
         //And that K8S is up and receiving PVC requests

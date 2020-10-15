@@ -32,11 +32,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 
-@Tags({@Tag("end-to-end"), @Tag("inter-process"), @Tag("smoke-test")})
-public class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeycloakServerBaseIT implements FluentTraversals {
+@Tags({@Tag("end-to-end"), @Tag("inter-process"), @Tag("smoke-test"), @Tag("post-deployment")})
+class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeycloakServerBaseIT implements FluentTraversals {
 
     @Test
-    public void create() {
+    void create() {
         //When I create a EntandoKeycloakServer and I specify it to use PostgreSQL
         EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder().withNewMetadata()
                 .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)

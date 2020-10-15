@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 import org.entando.kubernetes.controller.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.FluentTernary;
 import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.creators.DeploymentCreator;
 import org.entando.kubernetes.controller.creators.SecretCreator;
 import org.entando.kubernetes.controller.database.DatabaseSchemaCreationResult;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
@@ -76,11 +75,6 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
-    public List<String> getNamesOfSecretsToMount() {
-        return Arrays.asList(keycloakServer.getMetadata().getName() + "-realm");
-    }
-
-    @Override
     public String getNameQualifier() {
         return KubeUtils.DEFAULT_SERVER_QUALIFIER;
     }
@@ -95,12 +89,6 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         vars.add(new EnvVar("KEYCLOAK_USER", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
         vars.add(new EnvVar("KEYCLOAK_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
         vars.add(new EnvVar("PROXY_ADDRESS_FORWARDING", "true", null));
-        vars.add(new EnvVar("JAVA_TOOL_OPTIONS",
-                "-Dkeycloak.migration.action=import "
-                        + "-Dkeycloak.migration.provider=singleFile "
-                        + "-Dkeycloak.migration.file=/etc/entando/connectionconfigs/"
-                        + keycloakServer.getMetadata().getName() + "-realm/realm.json "
-                        + "-Dkeycloak.migration.strategy=OVERWRITE_EXISTING", null));
     }
 
     @Override
