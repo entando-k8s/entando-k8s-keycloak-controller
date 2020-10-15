@@ -118,13 +118,14 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         if (existingKeycloakAdminSecret == null) {
             //We need to FIRST populate the secret in the controller's namespace so that, if deployment fails, we have the credentials
             // that the secret in the Deployment's namespace was based on, because we may not have read access to it.
-            k8sClient.secrets().overwriteControllerSecret(new SecretBuilder()
+            existingKeycloakAdminSecret = new SecretBuilder()
                     .withNewMetadata()
                     .withName(myLocalKeycloakAdminSecretName(newEntandoKeycloakServer))
                     .endMetadata()
                     .addToStringData(KubeUtils.USERNAME_KEY, "entando_keycloak_admin")
                     .addToStringData(KubeUtils.PASSSWORD_KEY, RandomStringUtils.randomAlphanumeric(10))
-                    .build());
+                    .build();
+            k8sClient.secrets().overwriteControllerSecret(existingKeycloakAdminSecret);
 
         }
         return existingKeycloakAdminSecret;

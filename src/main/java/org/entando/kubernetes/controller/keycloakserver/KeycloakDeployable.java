@@ -16,7 +16,6 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
-import static java.util.Optional.ofNullable;
 import static org.entando.kubernetes.controller.KubeUtils.generateSecret;
 
 import io.fabric8.kubernetes.api.model.Pod;
@@ -51,12 +50,8 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
         containers = Arrays.asList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult));
         this.keycloakAdminSecret = generateSecret(this.keycloakServer, KeycloakDeployableContainer.secretName(this.keycloakServer),
                 "entando_keycloak_admin");
-        ofNullable(existingKeycloakAdminSecret).ifPresent(existing -> overwriteFromExistingSecret(existing, this.keycloakAdminSecret));
-    }
-
-    private void overwriteFromExistingSecret(Secret existingKeycloakAdminSecret, Secret keycloakAdminSecret) {
-        keycloakAdminSecret.setStringData(existingKeycloakAdminSecret.getStringData());
-        keycloakAdminSecret.setData(existingKeycloakAdminSecret.getData());
+        this.keycloakAdminSecret.setStringData(existingKeycloakAdminSecret.getStringData());
+        this.keycloakAdminSecret.setData(existingKeycloakAdminSecret.getData());
     }
 
     @Override
