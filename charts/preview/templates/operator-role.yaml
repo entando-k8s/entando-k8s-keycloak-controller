@@ -37,7 +37,7 @@ rules:
     resources:
       - "pods/exec"
     verbs:
-      - "create"
+      - "get"
   - apiGroups:
       - ""
     resources:
