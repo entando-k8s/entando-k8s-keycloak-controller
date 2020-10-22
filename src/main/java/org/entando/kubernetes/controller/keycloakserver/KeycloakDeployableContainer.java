@@ -80,7 +80,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
-    public int getPort() {
+    public int getPrimaryPort() {
         return 8080;
     }
 
@@ -93,7 +93,8 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public void addDatabaseConnectionVariables(List<EnvVar> vars) {
-        if (keycloakServer.getSpec().getDbms().map(dbmsImageVendor -> dbmsImageVendor == DbmsVendor.NONE).orElse(true)) {
+        if (keycloakServer.getSpec().getDbms()
+                .map(dbmsImageVendor -> dbmsImageVendor == DbmsVendor.NONE || dbmsImageVendor == DbmsVendor.EMBEDDED).orElse(true)) {
             vars.add(new EnvVar("DB_VENDOR", "h2", null));
         } else {
             DatabaseSchemaCreationResult databaseSchemaCreationResult = dbSchemas.get("db");

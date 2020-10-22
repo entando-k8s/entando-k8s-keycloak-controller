@@ -123,14 +123,14 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
         Container theInitContainer = theInitContainerNamed(MY_KEYCLOAK + "-db-schema-creation-job").on(keycloakDbJob);
         verifyStandardSchemaCreationVariables("my-secret", MY_KEYCLOAK_DB_SECRET, theInitContainer, DbmsVendor.ORACLE);
         assertThat(theVariableNamed(DATABASE_SERVER_HOST).on(theInitContainer),
-                is("mydb-service." + MY_KEYCLOAK_NAMESPACE + ".svc.cluster.local"));
+                is("mydb-db-service." + MY_KEYCLOAK_NAMESPACE + ".svc.cluster.local"));
         //And it was instructed to create a schema reflecting the keycloakdb user
         assertThat(theVariableNamed(DATABASE_NAME).on(theInitContainer), is("my_db"));
     }
 
     private EntandoDatabaseService buildEntandoDatabaseService() {
         EntandoDatabaseService edb = new EntandoDatabaseService(
-                new EntandoDatabaseServiceSpec(DbmsVendor.ORACLE, "myoracle.com", 1521, "my_db", null, "my-secret",
+                new EntandoDatabaseServiceSpec(DbmsVendor.ORACLE, "myoracle.com", 1521, "my_db", null, "my-secret", false,
                         Collections.emptyMap()));
         edb.getMetadata().setName("mydb");
         edb.getMetadata().setNamespace("mynamespace");
