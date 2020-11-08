@@ -7,20 +7,7 @@ rules:
   - apiGroups:
       - entando.org
     resources:
-      - entandokeycloakservers
-      - entandokeycloakservers/finalizers
-      - entandoclusterinfrastructures
-      - entandoclusterinfrastructures/finalizers
-      - entandoapps
-      - entandoapps/finalizers
-      - entandoplugins
-      - entandoplugins/finalizers
-      - entandoapppluginlinks
-      - entandoapppluginlinks/finalizers
-      - entandodatabaseservices
-      - entandodatabaseservices/finalizers
-      - entandocompositeapps
-      - entandocompositeapps/finalizers
+      - "*"
     verbs:
       - "*"
   - apiGroups:
@@ -46,6 +33,7 @@ rules:
       - endpoints
       - persistentvolumeclaims
       - configmaps
+      - serviceaccounts
     verbs:
       - "*"
   - apiGroups:
@@ -61,26 +49,32 @@ rules:
       - ingresses
     verbs:
       - "*"
-{{- if .Values.supportOpenshift }}
-  - apiGroups:
-      - route.openshift.io
-    resources:
-      - "routes"
-      - "routes/custom-host"
-    verbs:
-      - "*"
-{{- end }}
-  - apiGroups:
-      - ""
-    resources:
-      - namespaces
-      - serviceaccounts
-    verbs:
-      - get
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - roles
-      - rolebindings
-    verbs:
-      - get
+  {{- if .Values.supportOpenshift }}
+- apiGroups:
+    - route.openshift.io
+  resources:
+    - "routes"
+    - "routes/custom-host"
+  verbs:
+    - "*"
+  {{- end }}
+- apiGroups:
+    - ""
+  resources:
+    - namespaces
+    - serviceaccounts
+  verbs:
+    - get
+- apiGroups:
+    - rbac.authorization.k8s.io
+  resources:
+    - roles
+  verbs:
+    - get
+- apiGroups:
+    - rbac.authorization.k8s.io
+  resources:
+    - rolebindings
+  verbs:
+    - get
+    - create
