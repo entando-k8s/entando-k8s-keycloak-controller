@@ -31,7 +31,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
-import java.util.Collections;
 import org.entando.kubernetes.controller.KeycloakClientConfig;
 import org.entando.kubernetes.controller.KubeUtils;
 import org.entando.kubernetes.controller.SimpleKeycloakClient;
@@ -46,7 +45,7 @@ import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerCon
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
-import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseServiceSpec;
+import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseServiceBuilder;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -129,11 +128,17 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
     }
 
     private EntandoDatabaseService buildEntandoDatabaseService() {
-        EntandoDatabaseService edb = new EntandoDatabaseService(
-                new EntandoDatabaseServiceSpec(DbmsVendor.ORACLE, "myoracle.com", 1521, "my_db", null, "my-secret", false,
-                        Collections.emptyMap()));
-        edb.getMetadata().setName("mydb");
-        edb.getMetadata().setNamespace("mynamespace");
-        return edb;
+        return new EntandoDatabaseServiceBuilder()
+                .withNewMetadata()
+                .withName("mydb")
+                .withNamespace("mynamespace")
+                .endMetadata()
+                .withNewSpec()
+                .withDbms(DbmsVendor.ORACLE)
+                .withHost("myoracle.com")
+                .withPort(1521)
+                .withDatabaseName("my_db")
+                .withSecretName("my-secret")
+                .withCreateDeployment(false).endSpec().build();
     }
 }

@@ -32,6 +32,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimStatus;
@@ -58,6 +59,7 @@ import java.util.Map;
 import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.KubeUtils;
 import org.entando.kubernetes.controller.SimpleKeycloakClient;
+import org.entando.kubernetes.controller.common.KeycloakName;
 import org.entando.kubernetes.controller.common.TlsHelper;
 import org.entando.kubernetes.controller.creators.SecretCreator;
 import org.entando.kubernetes.controller.inprocesstest.InProcessTestUtil;
@@ -195,13 +197,35 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
         ks.load(new ByteArrayInputStream(decode), TlsHelper.getInstance().getTrustStorePassword().toCharArray());
         assertNotNull(ks.getCertificate("ca.crt"));
 
-        //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
-        // Admin Secret
-        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class, DEFAULT_KEYCLOAK_ADMIN_SECRET);
+        //And a K8S Secret was created in the controllers' namespace with a name that the fact that it is a Keycloak Admin Secret
+        NamedArgumentCaptor<Secret> controllerKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
+                KeycloakName.forTheAdminSecret(newEntandoKeycloakServer));
+        verify(client.secrets()).overwriteControllerSecret(controllerKeycloakAdminSecretCaptor.capture());
+        Secret controllerKeycloakAdminSecret = controllerKeycloakAdminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(controllerKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(controllerKeycloakAdminSecret), is(not(emptyOrNullString())));
+
+        //And a K8S Secret was created in the EntandoKeycloakServer's namespace with a name that the fact that it is a Keycloak Admin Secret
+        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
+                KeycloakName.forTheAdminSecret(newEntandoKeycloakServer));
         verify(client.secrets()).overwriteControllerSecret(localKeycloakAdminSecretCaptor.capture());
         Secret localKeycloakAdminSecret = localKeycloakAdminSecretCaptor.getValue();
         assertThat(theKey(KubeUtils.USERNAME_KEY).on(localKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
         assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(localKeycloakAdminSecret), is(not(emptyOrNullString())));
+        //And a K8S ConfigMap was created in the EntandoKeycloakServer's namespace with a name that reflects the fact that it is a
+        // Keycloak Connection Configmap
+        NamedArgumentCaptor<ConfigMap> localKeycloakConnectionConfigCaptor = forResourceNamed(ConfigMap.class,
+                KeycloakName.forTheConnectionConfigMap(newEntandoKeycloakServer));
+        verify(client.secrets()).createConfigMapIfAbsent(eq(keycloakServer), localKeycloakConnectionConfigCaptor.capture());
+        ConfigMap localKeycloakConnectionConfig = localKeycloakConnectionConfigCaptor.getValue();
+        assertThat(theKey(KubeUtils.URL_KEY).on(localKeycloakConnectionConfig), is("https://access.192.168.0.100.nip.io/auth"));
+
+        //And the Operator's default ConfigMap points to the previously created KeycloakServer
+        assertThat(client.entandoResources().loadDefaultConfigMap().getData()
+                .get(KeycloakName.DEFAULT_KEYCLOAK_NAME_KEY), is(MY_KEYCLOAK));
+        assertThat(client.entandoResources().loadDefaultConfigMap().getData()
+                .get(KeycloakName.DEFAULT_KEYCLOAK_NAMESPACE_KEY), is(MY_KEYCLOAK_NAMESPACE));
+
     }
 
     @Test
@@ -210,7 +234,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
         final EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
         //But I already have a Keycloak admin secret associated with this EntandoKeycloakServer
         Secret existingAdminSecret = new SecretBuilder().withNewMetadata()
-                .withName(newEntandoKeycloakServer.getMetadata().getName() + "-connection-secret")
+                .withName(KeycloakName.forTheAdminSecret(newEntandoKeycloakServer))
                 .endMetadata()
                 .addToStringData(KubeUtils.USERNAME_KEY, MY_KEYCLOAK_ADMIN_USERNAME)
                 .addToStringData(KubeUtils.PASSSWORD_KEY, MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD).build();
@@ -231,7 +255,8 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
 
         //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
         // Admin Secret, with the same state as the existing admin secret
-        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class, DEFAULT_KEYCLOAK_ADMIN_SECRET);
+        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
+                KeycloakName.forTheAdminSecret(keycloakServer));
         verify(client.secrets()).overwriteControllerSecret(localKeycloakAdminSecretCaptor.capture());
         Secret localKeycloakAdminSecret = localKeycloakAdminSecretCaptor.getValue();
         assertThat(theKey(KubeUtils.USERNAME_KEY).on(localKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
@@ -241,8 +266,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
         // Admin Secret, with the same state as the existing admin secret
         NamedArgumentCaptor<Secret> myLocalKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
                 existingAdminSecret.getMetadata().getName());
-        //twice because the test also calls it
-        verify(client.secrets(), times(2)).overwriteControllerSecret(myLocalKeycloakAdminSecretCaptor.capture());
+        verify(client.secrets(), times(1)).overwriteControllerSecret(myLocalKeycloakAdminSecretCaptor.capture());
         Secret myLocalKeycloakAdminSecret = myLocalKeycloakAdminSecretCaptor.getValue();
         assertThat(theKey(KubeUtils.USERNAME_KEY).on(myLocalKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
         assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(myLocalKeycloakAdminSecret), is(MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD));

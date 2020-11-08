@@ -38,7 +38,7 @@ import org.entando.kubernetes.controller.spi.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.PersistentVolumeAware;
 import org.entando.kubernetes.controller.spi.TlsAware;
 import org.entando.kubernetes.model.DbmsVendor;
-import org.entando.kubernetes.model.EntandoDeploymentSpec;
+import org.entando.kubernetes.model.EntandoIngressingDeploymentSpec;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 
 public class KeycloakDeployableContainer implements IngressingContainer, DbAware, TlsAware, PersistentVolumeAware,
@@ -160,7 +160,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
-    public EntandoDeploymentSpec getCustomResourceSpec() {
+    public EntandoIngressingDeploymentSpec getCustomResourceSpec() {
         return keycloakServer.getSpec();
     }
 }

@@ -21,6 +21,7 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -29,9 +30,9 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import java.util.concurrent.TimeUnit;
-import org.entando.kubernetes.controller.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.KubeUtils;
+import org.entando.kubernetes.controller.common.KeycloakName;
 import org.entando.kubernetes.controller.integrationtest.support.ClusterInfrastructureIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig;
@@ -43,6 +44,7 @@ import org.entando.kubernetes.controller.integrationtest.support.K8SIntegrationT
 import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.TestFixturePreparation;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.model.ResourceReference;
 import org.entando.kubernetes.model.app.EntandoApp;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
 import org.entando.kubernetes.model.infrastructure.EntandoClusterInfrastructure;
@@ -75,7 +77,7 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
                 .deleteAll(EntandoPlugin.class)
                 .fromNamespace(EntandoPluginIntegrationTestHelper.TEST_PLUGIN_NAMESPACE)
         );
-        await().atMost(2, TimeUnit.MINUTES).ignoreExceptions().pollInterval(10, TimeUnit.SECONDS).until(this::killPgPod);
+        helper.externalDatabases().deletePgTestPod(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE);
         EntandoKeycloakServerController controller = new EntandoKeycloakServerController(client, false);
         if (EntandoOperatorTestConfig.getTestTarget() == TestTarget.K8S) {
             helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE);
@@ -84,23 +86,13 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
         }
     }
 
-    private boolean killPgPod() {
-        PodResource<Pod, DoneablePod> resource = client.pods()
-                .inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName("pg-test");
-        if (resource.fromServer().get() == null) {
-            return true;
-        }
-        resource.delete();
-        return false;
-    }
-
     @AfterEach
     public void afterwards() {
         helper.afterTest();
         client.close();
     }
 
-    protected void verifyKeycloakDeployment() {
+    protected void verifyKeycloakDeployment(EntandoKeycloakServer entandoKeycloakServer) {
         String http = HttpTestHelper.getDefaultProtocol();
         await().atMost(15, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).ignoreExceptions().until(() -> HttpTestHelper
                 .statusOk(http + "://" + KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix()
@@ -121,11 +113,16 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
 
         Secret adminSecret = client.secrets()
                 .inNamespace(client.getNamespace())
-                .withName(EntandoOperatorConfig.getDefaultKeycloakSecretName())
+                .withName(KeycloakName.forTheAdminSecret(entandoKeycloakServer))
                 .get();
         assertNotNull(adminSecret);
         assertTrue(adminSecret.getData().containsKey(KubeUtils.USERNAME_KEY));
         assertTrue(adminSecret.getData().containsKey(KubeUtils.PASSSWORD_KEY));
-        assertTrue(adminSecret.getData().containsKey(KubeUtils.URL_KEY));
+        ConfigMap configMap = client.configMaps()
+                .inNamespace(client.getNamespace())
+                .withName(KeycloakName.forTheConnectionConfigMap(entandoKeycloakServer))
+                .get();
+        assertNotNull(configMap);
+        assertTrue(configMap.getData().containsKey(KubeUtils.URL_KEY));
     }
 }

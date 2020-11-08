@@ -34,8 +34,10 @@ import org.entando.kubernetes.controller.spi.IngressingDeployable;
 import org.entando.kubernetes.controller.spi.Secretive;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
+import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
 
-public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceDeploymentResult, EntandoKeycloakServer>, DbAwareDeployable,
+public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceDeploymentResult, EntandoKeycloakServerSpec>,
+        DbAwareDeployable,
         Secretive {
 
     private final EntandoKeycloakServer keycloakServer;
@@ -43,12 +45,15 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
     private final DatabaseServiceResult databaseServiceResult;
     private final Secret keycloakAdminSecret;
 
-    public KeycloakDeployable(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult,
+    public KeycloakDeployable(EntandoKeycloakServer keycloakServer,
+            DatabaseServiceResult databaseServiceResult,
             Secret existingKeycloakAdminSecret) {
         this.keycloakServer = keycloakServer;
         this.databaseServiceResult = databaseServiceResult;
-        containers = Arrays.asList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult));
-        this.keycloakAdminSecret = generateSecret(this.keycloakServer, KeycloakDeployableContainer.secretName(this.keycloakServer),
+        this.containers = Arrays.asList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult));
+        this.keycloakAdminSecret = generateSecret(
+                this.keycloakServer,
+                KeycloakDeployableContainer.secretName(this.keycloakServer),
                 "entando_keycloak_admin");
         this.keycloakAdminSecret.setStringData(existingKeycloakAdminSecret.getStringData());
         this.keycloakAdminSecret.setData(existingKeycloakAdminSecret.getData());
@@ -86,7 +91,7 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
 
     @Override
     public KeycloakServiceDeploymentResult createResult(Deployment deployment, Service service, Ingress ingress, Pod pod) {
-        return new KeycloakServiceDeploymentResult(pod, service, ingress, keycloakAdminSecret);
+        return new KeycloakServiceDeploymentResult(pod, service, ingress);
     }
 
     @Override
