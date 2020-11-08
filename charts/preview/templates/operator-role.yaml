@@ -49,32 +49,32 @@ rules:
       - ingresses
     verbs:
       - "*"
-  {{- if .Values.supportOpenshift }}
-- apiGroups:
-    - route.openshift.io
-  resources:
-    - "routes"
-    - "routes/custom-host"
-  verbs:
-    - "*"
-  {{- end }}
-- apiGroups:
-    - ""
-  resources:
-    - namespaces
-    - serviceaccounts
-  verbs:
-    - get
-- apiGroups:
-    - rbac.authorization.k8s.io
-  resources:
-    - roles
-  verbs:
-    - get
-- apiGroups:
-    - rbac.authorization.k8s.io
-  resources:
-    - rolebindings
-  verbs:
-    - get
-    - create
+{{- if .Values.supportOpenshift }}
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - "routes"
+      - "routes/custom-host"
+    verbs:
+      - "*"
+{{- end }}
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+    verbs:
+      - get
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+    verbs:
+      - get
+      - create
