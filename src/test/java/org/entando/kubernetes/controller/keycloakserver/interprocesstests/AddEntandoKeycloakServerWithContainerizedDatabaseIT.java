@@ -51,7 +51,7 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 30, true);
         //Then I expect to see
         verifyKeycloakDatabaseDeployment();
-        verifyKeycloakDeployment();
+        verifyKeycloakDeployment(keycloakServer);
     }
 
     private void verifyKeycloakDatabaseDeployment() {

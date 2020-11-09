@@ -17,23 +17,13 @@
 package org.entando.kubernetes.controller.keycloakserver;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
 import org.entando.kubernetes.controller.ExposedDeploymentResult;
 
 public class KeycloakServiceDeploymentResult extends ExposedDeploymentResult<KeycloakServiceDeploymentResult> {
 
-    private final Secret keycloakAdminSecret;
-
-    public KeycloakServiceDeploymentResult(Pod pod, Service service,
-            Ingress ingress, Secret keycloakAdminSecret) {
+    public KeycloakServiceDeploymentResult(Pod pod, Service service, Ingress ingress) {
         super(pod, service, ingress);
-        this.keycloakAdminSecret = keycloakAdminSecret;
     }
-
-    public Secret getKeycloakAdminSecret() {
-        return keycloakAdminSecret;
-    }
-
 }
