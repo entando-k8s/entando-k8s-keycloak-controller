@@ -25,6 +25,7 @@ import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegra
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
+import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -43,7 +44,7 @@ class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntand
                 .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
                 .withNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
                 .endMetadata().withNewSpec()
-                .withImageName("entando/entando-keycloak")
+                .withStandardImage(StandardKeycloakImage.KEYCLOAK)
                 .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(POSTGRESQL)
                 .withDefault(true)

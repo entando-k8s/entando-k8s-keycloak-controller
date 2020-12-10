@@ -105,9 +105,10 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
     private void ensureHttpAccess(KeycloakServiceDeploymentResult serviceDeploymentResult) {
         //Give the operator access over http for cluster.local calls
         k8sClient.pods().executeOnPod(serviceDeploymentResult.getPod(), "server-container", 30,
-                "cd /opt/jboss/keycloak/bin",
-                "./kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user $KEYCLOAK_USER --password "
-                        + "$KEYCLOAK_PASSWORD",
+                "cd ${KEYCLOAK_HOME}/bin",
+                "./kcadm.sh config credentials --server http://localhost:8080/auth --realm master "
+                        + "--user  ${KEYCLOAK_USER:-${SSO_ADMIN_USERNAME}} "
+                        + "--password ${KEYCLOAK_PASSWORD:-${SSO_ADMIN_PASSWORD}}",
                 "./kcadm.sh update realms/master -s sslRequired=NONE"
         );
     }

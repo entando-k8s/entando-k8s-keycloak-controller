@@ -26,6 +26,7 @@ import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegra
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
+import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,7 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
                 .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
                 .withNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
                 .endMetadata().withNewSpec()
-                .withImageName("entando/entando-keycloak")
+                .withStandardImage(StandardKeycloakImage.KEYCLOAK)
                 .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(ORACLE)
                 .withDefault(true)

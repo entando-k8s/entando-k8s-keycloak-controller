@@ -17,22 +17,27 @@
 package org.entando.kubernetes.controller.keycloakserver;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.entando.kubernetes.controller.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.FluentTernary;
 import org.entando.kubernetes.controller.KubeUtils;
+import org.entando.kubernetes.controller.common.DockerImageInfo;
 import org.entando.kubernetes.controller.creators.SecretCreator;
 import org.entando.kubernetes.controller.database.DatabaseSchemaCreationResult;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
 import org.entando.kubernetes.controller.database.DbmsDockerVendorStrategy;
+import org.entando.kubernetes.controller.database.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.ConfigurableResourceContainer;
 import org.entando.kubernetes.controller.spi.DatabasePopulator;
 import org.entando.kubernetes.controller.spi.DbAware;
+import org.entando.kubernetes.controller.spi.DefaultDockerImageInfo;
 import org.entando.kubernetes.controller.spi.IngressingContainer;
 import org.entando.kubernetes.controller.spi.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.PersistentVolumeAware;
@@ -40,11 +45,13 @@ import org.entando.kubernetes.controller.spi.TlsAware;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.EntandoIngressingDeploymentSpec;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
+import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
 public class KeycloakDeployableContainer implements IngressingContainer, DbAware, TlsAware, PersistentVolumeAware,
         ParameterizableContainer, ConfigurableResourceContainer {
 
-    private static final String DEFAULT_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
+    private static final String COMMUNITY_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
+    public static final String REDHAT_SSO_IMAGE_NAME = "entando/entando-redhat-sso";
 
     private final EntandoKeycloakServer keycloakServer;
     private final DatabaseServiceResult databaseServiceResult;
@@ -60,8 +67,23 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
-    public String determineImageToUse() {
-        return keycloakServer.getSpec().getImageName().orElse(DEFAULT_KEYCLOAK_IMAGE_NAME);
+    public DockerImageInfo getDockerImageInfo() {
+        return new DefaultDockerImageInfo(keycloakServer.getSpec().getCustomImage()
+                .orElse(determineStandardImage()));
+    }
+
+    private String determineStandardImage() {
+        StandardKeycloakImage standardKeycloakImage;
+        if (EntandoOperatorConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
+            standardKeycloakImage = StandardKeycloakImage.REDHAT_SSO;
+        } else {
+            standardKeycloakImage = keycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK);
+        }
+        if (standardKeycloakImage == StandardKeycloakImage.REDHAT_SSO) {
+            return REDHAT_SSO_IMAGE_NAME;
+        } else {
+            return COMMUNITY_KEYCLOAK_IMAGE_NAME;
+        }
     }
 
     @Override
@@ -85,14 +107,17 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
-    public void addEnvironmentVariables(List<EnvVar> vars) {
+    public List<EnvVar> getEnvironmentVariables() {
+        List<EnvVar> vars = new ArrayList<>();
         vars.add(new EnvVar("KEYCLOAK_USER", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
         vars.add(new EnvVar("KEYCLOAK_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
         vars.add(new EnvVar("PROXY_ADDRESS_FORWARDING", "true", null));
+        return vars;
     }
 
     @Override
-    public void addDatabaseConnectionVariables(List<EnvVar> vars) {
+    public List<EnvVar> getDatabaseConnectionVariables() {
+        List<EnvVar> vars = new ArrayList<>();
         if (keycloakServer.getSpec().getDbms()
                 .map(dbmsImageVendor -> dbmsImageVendor == DbmsVendor.NONE || dbmsImageVendor == DbmsVendor.EMBEDDED).orElse(true)) {
             vars.add(new EnvVar("DB_VENDOR", "h2", null));
@@ -111,10 +136,12 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
                                     Collectors.joining("&")), null));
 
         }
+        return vars;
     }
 
     @Override
-    public void addTlsVariables(List<EnvVar> vars) {
+    public List<EnvVar> getTlsVariables() {
+        List<EnvVar> vars=new ArrayList<>();
         String certFiles = String.join(" ",
                 EntandoOperatorConfig.getCertificateAuthorityCertPaths().stream()
                         .map(path -> SecretCreator.standardCertPathOf(path.getFileName().toString()))
@@ -122,11 +149,12 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         vars.add(new EnvVar("X509_CA_BUNDLE",
                 "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
                         + certFiles, null));
+        return vars;
     }
 
     private String determineKeycloaksNonStandardDbVendorName(DatabaseSchemaCreationResult databaseSchemaCreationResult) {
-        return FluentTernary.use("postgres").when(databaseSchemaCreationResult.getVendor() == DbmsDockerVendorStrategy.POSTGRESQL)
-                .orElse(databaseSchemaCreationResult.getVendor().getName());
+        return FluentTernary.use("postgres").when(databaseSchemaCreationResult.getVendor().getVendorConfig() == DbmsVendorConfig.POSTGRESQL)
+                .orElse(databaseSchemaCreationResult.getVendor().getVendorConfig().getName());
     }
 
     @Override

@@ -35,11 +35,14 @@ import org.entando.kubernetes.controller.spi.Secretive;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
+import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
 public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceDeploymentResult, EntandoKeycloakServerSpec>,
         DbAwareDeployable,
         Secretive {
 
+    public static final long KEYCLOAK_IMAGE_DEFAULT_USERID = 1000L;
+    public static final long REDHAT_SSO_IMAGE_DEFAULT_USERID = 185L;
     private final EntandoKeycloakServer keycloakServer;
     private final List<DeployableContainer> containers;
     private final DatabaseServiceResult databaseServiceResult;
@@ -66,7 +69,11 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
 
     @Override
     public Optional<Long> getFileSystemUserAndGroupId() {
-        return Optional.of(1000L);
+        if(keycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK)==StandardKeycloakImage.KEYCLOAK){
+            return Optional.of(KEYCLOAK_IMAGE_DEFAULT_USERID);
+        }else{
+            return Optional.of(REDHAT_SSO_IMAGE_DEFAULT_USERID);
+        }
     }
 
     @Override
