@@ -116,7 +116,7 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
         verify(client.deployments()).createOrPatchDeployment(eq(keycloakServer), keyclaokDeploymentCaptor.capture());
         //Then a pod was created for Keycloak using the credentials and connection settings of the EntandoDatabaseService
         LabeledArgumentCaptor<Pod> keycloakSchemaJobCaptor = forResourceWithLabel(Pod.class, KEYCLOAK_SERVER_LABEL_NAME, MY_KEYCLOAK)
-                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-db-preparation-job");
+                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-server-db-preparation-job");
         verify(client.pods()).runToCompletion(keycloakSchemaJobCaptor.capture());
         Pod keycloakDbJob = keycloakSchemaJobCaptor.getValue();
         Container theInitContainer = theInitContainerNamed(MY_KEYCLOAK + "-db-schema-creation-job").on(keycloakDbJob);

@@ -102,7 +102,7 @@ class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, 
         Deployment deployment = keycloakDeploymentCaptor.getValue();
         //Then no database schema preparation job was invoked
         LabeledArgumentCaptor<Pod> keycloakSchemaJobCaptor = forResourceWithLabel(Pod.class, KEYCLOAK_SERVER_LABEL_NAME, MY_KEYCLOAK)
-                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-db-preparation-job");
+                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-server-db-preparation-job");
         verify(client.pods(), never()).runToCompletion(keycloakSchemaJobCaptor.capture());
         //And the DB_VENDOR is set to h2
         assertThat(theVariableNamed("DB_VENDOR").on(theContainerNamed("server-container").on(deployment)), is("h2"));

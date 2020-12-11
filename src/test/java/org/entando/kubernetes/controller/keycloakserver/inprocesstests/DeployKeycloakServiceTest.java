@@ -359,7 +359,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
         // A DB preparation Pod is created with labels linking it to the EntandoKeycloakServer
         LabeledArgumentCaptor<Pod> podCaptor = forResourceWithLabel(Pod.class, KEYCLOAK_SERVER_LABEL_NAME, MY_KEYCLOAK)
                 //And the fact that it is a DB JOB
-                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK_DB + "-preparation-job");
+                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-server-db-preparation-job");
         verify(client.pods()).runToCompletion(podCaptor.capture());
         Pod theDbJobPod = podCaptor.getValue();
         //With exactly 1 container
