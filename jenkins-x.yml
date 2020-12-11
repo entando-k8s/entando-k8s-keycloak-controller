@@ -1,6 +1,8 @@
 buildPack: entando-maven-docker
 pipelineConfig:
   env:
+    - name: SKIP_CHECKSTYLE
+      value: "true"
     - name: PIPELINE_CODE
       value: kc
     - name: TEST_DEPLOYMENT
