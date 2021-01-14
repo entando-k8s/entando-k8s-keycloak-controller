@@ -69,6 +69,7 @@ import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoRe
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.test.support.CommonLabels;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
@@ -85,7 +86,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 //in execute component test
 @Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
-class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
+class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, CommonLabels {
 
     private static final String MY_KEYCLOAK_ADMIN_SECRET = MY_KEYCLOAK + "-admin-secret";
     private static final String MY_KEYCLOAK_SERVER = MY_KEYCLOAK + "-server";
@@ -357,9 +358,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals {
         keycloakServerController.onStartup(new StartupEvent());
 
         // A DB preparation Pod is created with labels linking it to the EntandoKeycloakServer
-        LabeledArgumentCaptor<Pod> podCaptor = forResourceWithLabel(Pod.class, KEYCLOAK_SERVER_LABEL_NAME, MY_KEYCLOAK)
-                //And the fact that it is a DB JOB
-                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-server-db-preparation-job");
+        LabeledArgumentCaptor<Pod> podCaptor = forResourceWithLabels(Pod.class, dbPreparationJobLabels(keycloakServer, "server"));
         verify(client.pods()).runToCompletion(podCaptor.capture());
         Pod theDbJobPod = podCaptor.getValue();
         //With exactly 1 container

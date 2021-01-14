@@ -40,6 +40,7 @@ import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoRe
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.test.support.CommonLabels;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.DoneableEntandoKeycloakServer;
@@ -56,7 +57,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 //in execute component test
 @Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
-class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, FluentTraversals {
+class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, FluentTraversals, CommonLabels {
 
     static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
     private static final String MY_KEYCLOAK_DB_SECRET = MY_KEYCLOAK + "-db-secret";
@@ -101,8 +102,8 @@ class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, 
         verify(client.deployments()).createOrPatchDeployment(eq(keycloakServer), keycloakDeploymentCaptor.capture());
         Deployment deployment = keycloakDeploymentCaptor.getValue();
         //Then no database schema preparation job was invoked
-        LabeledArgumentCaptor<Pod> keycloakSchemaJobCaptor = forResourceWithLabel(Pod.class, KEYCLOAK_SERVER_LABEL_NAME, MY_KEYCLOAK)
-                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-db-preparation-job");
+        LabeledArgumentCaptor<Pod> keycloakSchemaJobCaptor = forResourceWithLabels(Pod.class,
+                dbPreparationJobLabels(keycloakServer, "server"));
         verify(client.pods(), never()).runToCompletion(keycloakSchemaJobCaptor.capture());
         //And the DB_VENDOR is set to h2
         assertThat(theVariableNamed("DB_VENDOR").on(theContainerNamed("server-container").on(deployment)), is("h2"));

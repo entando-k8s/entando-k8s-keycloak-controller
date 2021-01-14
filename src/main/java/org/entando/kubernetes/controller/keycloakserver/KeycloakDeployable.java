@@ -64,14 +64,15 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
 
     @Override
     public boolean hasContainersExpectingSchemas() {
-        return keycloakServer.getSpec().getDbms().map(v -> v != DbmsVendor.NONE && v != DbmsVendor.EMBEDDED).orElse(false);
+        DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(keycloakServer);
+        return dbmsVendor != DbmsVendor.EMBEDDED;
     }
 
     @Override
     public Optional<Long> getFileSystemUserAndGroupId() {
-        if(keycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK)==StandardKeycloakImage.KEYCLOAK){
+        if (keycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK) == StandardKeycloakImage.KEYCLOAK) {
             return Optional.of(KEYCLOAK_IMAGE_DEFAULT_USERID);
-        }else{
+        } else {
             return Optional.of(REDHAT_SSO_IMAGE_DEFAULT_USERID);
         }
     }

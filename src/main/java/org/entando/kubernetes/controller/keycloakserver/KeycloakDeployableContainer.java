@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.entando.kubernetes.controller.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.FluentTernary;
 import org.entando.kubernetes.controller.KubeUtils;
@@ -32,7 +31,6 @@ import org.entando.kubernetes.controller.common.DockerImageInfo;
 import org.entando.kubernetes.controller.creators.SecretCreator;
 import org.entando.kubernetes.controller.database.DatabaseSchemaCreationResult;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
-import org.entando.kubernetes.controller.database.DbmsDockerVendorStrategy;
 import org.entando.kubernetes.controller.database.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.ConfigurableResourceContainer;
 import org.entando.kubernetes.controller.spi.DatabasePopulator;
@@ -69,21 +67,19 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public DockerImageInfo getDockerImageInfo() {
         return new DefaultDockerImageInfo(keycloakServer.getSpec().getCustomImage()
-                .orElse(determineStandardImage()));
+                .orElse(determineStandardImageName()));
     }
 
-    private String determineStandardImage() {
-        StandardKeycloakImage standardKeycloakImage;
-        if (EntandoOperatorConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
-            standardKeycloakImage = StandardKeycloakImage.REDHAT_SSO;
-        } else {
-            standardKeycloakImage = keycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK);
-        }
-        if (standardKeycloakImage == StandardKeycloakImage.REDHAT_SSO) {
+    private String determineStandardImageName() {
+        if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
             return REDHAT_SSO_IMAGE_NAME;
         } else {
             return COMMUNITY_KEYCLOAK_IMAGE_NAME;
         }
+    }
+
+    private StandardKeycloakImage determineStandardKeycloakImage() {
+        return EntandoKeycloakHelper.determineStandardImage(keycloakServer);
     }
 
     @Override
@@ -118,18 +114,34 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public List<EnvVar> getDatabaseConnectionVariables() {
         List<EnvVar> vars = new ArrayList<>();
-        if (keycloakServer.getSpec().getDbms()
-                .map(dbmsImageVendor -> dbmsImageVendor == DbmsVendor.NONE || dbmsImageVendor == DbmsVendor.EMBEDDED).orElse(true)) {
-            vars.add(new EnvVar("DB_VENDOR", "h2", null));
+        if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
+            if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
+                vars.add(new EnvVar("DB_DRIVER", "h2", null));
+                vars.add(new EnvVar("DB_JNDI", "java:/redhat-sso-ds", null));
+                vars.add(new EnvVar("DATASOURCES", "DB", null));
+                vars.add(new EnvVar("DB_SERVICE_HOST", "dummy", null));
+                vars.add(new EnvVar("DB_SERVICE_PORT", "1234", null));
+            } else {
+                vars.add(new EnvVar("DB_VENDOR", "h2", null));
+            }
         } else {
             DatabaseSchemaCreationResult databaseSchemaCreationResult = dbSchemas.get("db");
-            vars.add(new EnvVar("DB_ADDR", databaseSchemaCreationResult.getInternalServiceHostname(), null));
-            vars.add(new EnvVar("DB_PORT", databaseSchemaCreationResult.getPort(), null));
+            if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
+                vars.add(new EnvVar("DB_SERVICE_HOST", databaseSchemaCreationResult.getInternalServiceHostname(), null));
+                vars.add(new EnvVar("DB_SERVICE_PORT", databaseSchemaCreationResult.getPort(), null));
+                vars.add(new EnvVar("DB_DRIVER", databaseSchemaCreationResult.getVendor().getName(), null));
+                vars.add(new EnvVar("DB_JNDI", "java:jboss/datasources/KeycloakDS", null));
+                vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaCreationResult.getUsernameRef()));
+                vars.add(new EnvVar("DATASOURCES", "DB", null));
+            } else {
+                vars.add(new EnvVar("DB_ADDR", databaseSchemaCreationResult.getInternalServiceHostname(), null));
+                vars.add(new EnvVar("DB_PORT", databaseSchemaCreationResult.getPort(), null));
+                vars.add(new EnvVar("DB_SCHEMA", databaseSchemaCreationResult.getSchemaName(), null));
+                vars.add(new EnvVar("DB_USER", null, databaseSchemaCreationResult.getUsernameRef()));
+            }
+            vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaCreationResult), null));
             vars.add(new EnvVar("DB_DATABASE", databaseSchemaCreationResult.getDatabase(), null));
             vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaCreationResult.getPasswordRef()));
-            vars.add(new EnvVar("DB_USER", null, databaseSchemaCreationResult.getUsernameRef()));
-            vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaCreationResult), null));
-            vars.add(new EnvVar("DB_SCHEMA", databaseSchemaCreationResult.getSchemaName(), null));
             vars.add(new EnvVar("JDBC_PARAMS",
                     databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
                             .collect(
@@ -141,7 +153,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public List<EnvVar> getTlsVariables() {
-        List<EnvVar> vars=new ArrayList<>();
+        List<EnvVar> vars = new ArrayList<>();
         String certFiles = String.join(" ",
                 EntandoOperatorConfig.getCertificateAuthorityCertPaths().stream()
                         .map(path -> SecretCreator.standardCertPathOf(path.getFileName().toString()))
@@ -169,10 +181,10 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public List<String> getDbSchemaQualifiers() {
-        if (keycloakServer.getSpec().getDbms().orElse(DbmsVendor.NONE) != DbmsVendor.NONE) {
-            return Arrays.asList("db");
-        } else {
+        if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
             return Collections.emptyList();
+        } else {
+            return Arrays.asList("db");
         }
     }
 

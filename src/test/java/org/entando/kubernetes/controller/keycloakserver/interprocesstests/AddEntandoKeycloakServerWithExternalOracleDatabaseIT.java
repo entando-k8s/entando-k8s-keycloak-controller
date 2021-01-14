@@ -52,7 +52,7 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
         SampleWriter.writeSample(keycloakServer, "keycloak-with-external-oracle-db");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
         //Then I expect to see
-        verifyKeycloakDeployment(keycloakServer);
+        verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);
         assertThat(
                 client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
                         KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")

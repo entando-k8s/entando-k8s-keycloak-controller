@@ -37,7 +37,6 @@ import org.entando.kubernetes.controller.common.KeycloakConnectionSecret;
 import org.entando.kubernetes.controller.common.KeycloakName;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
-import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
 
@@ -149,7 +148,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         // Create database for Keycloak
         return prepareDatabaseService(
                 newEntandoKeycloakServer,
-                newEntandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.EMBEDDED),
+                EntandoKeycloakHelper.determineDbmsVendor(newEntandoKeycloakServer),
                 "db");
     }
 

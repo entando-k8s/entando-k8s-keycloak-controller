@@ -52,7 +52,7 @@ class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntand
         SampleWriter.writeSample(keycloakServer, "keycloak-with-external-postgresql-db");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
         //Then I expect to see a valid keycloak deployment
-        verifyKeycloakDeployment(keycloakServer);
+        verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);
         assertThat(client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
                 KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
                 .get(), Matchers.is(nullValue()));
@@ -62,7 +62,7 @@ class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntand
                 .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE));
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_FORCE_DB_PASSWORD_RESET.getJvmSystemProperty(), "true");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
-        verifyKeycloakDeployment(keycloakServer);
+        verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);
     }
 
     @Override
