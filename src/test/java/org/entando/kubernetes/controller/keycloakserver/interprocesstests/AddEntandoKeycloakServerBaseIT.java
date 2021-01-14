@@ -102,7 +102,8 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
                         .on(theContainerNamed("server-container").on(deployment))
                         .getContainerPort(),
                 is(8080));
-        assertThat(theContainerNamed("server-container").on(deployment).getImage(), containsString(standardKeycloakImage.name().toLowerCase().replace("_","-")));
+        assertThat(theContainerNamed("server-container").on(deployment).getImage(),
+                containsString(standardKeycloakImage.name().toLowerCase().replace("_", "-")));
         Service service = client.services().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
                 KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-server-service").get();
         assertThat(thePortNamed("server-port").on(service).getPort(), is(8080));

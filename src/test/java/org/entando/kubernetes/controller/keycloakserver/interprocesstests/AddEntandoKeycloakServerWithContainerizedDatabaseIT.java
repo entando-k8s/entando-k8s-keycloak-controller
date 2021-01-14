@@ -68,12 +68,12 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
         //Then I expect to see
         verifyKeycloakDatabaseDeployment(complianceMode);
         StandardKeycloakImage standardServerImage;
-        if(complianceMode==EntandoOperatorComplianceMode.COMMUNITY){
-            standardServerImage=StandardKeycloakImage.KEYCLOAK;
-        }else{
-            standardServerImage=StandardKeycloakImage.REDHAT_SSO;
+        if (complianceMode == EntandoOperatorComplianceMode.COMMUNITY) {
+            standardServerImage = StandardKeycloakImage.KEYCLOAK;
+        } else {
+            standardServerImage = StandardKeycloakImage.REDHAT_SSO;
         }
-        verifyKeycloakDeployment(keycloakServer,standardServerImage);
+        verifyKeycloakDeployment(keycloakServer, standardServerImage);
     }
 
     private void verifyKeycloakDatabaseDeployment(EntandoOperatorComplianceMode complianceMode) {
