@@ -11,7 +11,7 @@ LABEL name="Entando K8S Keycloak Controller" \
                    deployment resources"
 ENV JAVA_OPTIONS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 ENV AB_ENABLED=jmx_exporter
-COPY LICENSE /licences/
+COPY LICENSE /licences/entandol-lgpl.txt
 COPY target/lib/* /deployments/lib/
 COPY target/*-runner.jar /deployments/app.jar
 ENTRYPOINT [ "/deployments/run-java.sh" ]
