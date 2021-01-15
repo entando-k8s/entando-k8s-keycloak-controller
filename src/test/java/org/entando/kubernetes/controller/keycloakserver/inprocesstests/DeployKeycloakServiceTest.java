@@ -87,6 +87,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 //in execute component test
 @Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
+//Because SONAR doesn't recognize custom matchers and captors
+@SuppressWarnings({"java:S6068", "java:S6073"})
 class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, CommonLabels {
 
     private static final String MY_KEYCLOAK_ADMIN_SECRET = MY_KEYCLOAK + "-admin-secret";
@@ -155,32 +157,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         TlsHelper.getInstance().init();
         // WHen I have deploya the EntandoKeycloakServer
         keycloakServerController.onStartup(new StartupEvent());
-
-        //Then a K8S Secret was created with a name that reflects the EntandoKeycloakServer and the fact that it is an admin secret
-        NamedArgumentCaptor<Secret> adminSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_DB_ADMIN_SECRET);
-        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), adminSecretCaptor.capture());
-        Secret theDbAdminSecret = adminSecretCaptor.getValue();
-        assertThat(theKey(KubeUtils.USERNAME_KEY).on(theDbAdminSecret), is("root"));
-        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(theDbAdminSecret), is(not(emptyOrNullString())));
-        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(theDbAdminSecret), is(MY_KEYCLOAK));
-
-        //And a K8S Secret was created with a name that reflects the EntandoKeycloakServer and the fact that it is the keycloakd db secret
-        NamedArgumentCaptor<Secret> keycloakDbSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_DB_SECRET);
-        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), keycloakDbSecretCaptor.capture());
-        Secret keycloakDbSecret = keycloakDbSecretCaptor.getValue();
-        assertThat(theKey(KubeUtils.USERNAME_KEY).on(keycloakDbSecret), is(MY_KEYCLOAK_DATABASE));
-        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakDbSecret), is(not(emptyOrNullString())));
-        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakDbSecret), is(MY_KEYCLOAK));
-
-        //And a K8S Secret was created in the Keycloak deployment's namespace with a name that reflects the EntandoKeycloakServer and the
-        // fact
-        // that it is Keycloak admin secret
-        NamedArgumentCaptor<Secret> keycloakAdminSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_ADMIN_SECRET);
-        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), keycloakAdminSecretCaptor.capture());
-        Secret keycloakAdminSecret = keycloakAdminSecretCaptor.getValue();
-        assertThat(theKey(KubeUtils.USERNAME_KEY).on(keycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
-        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakAdminSecret), is(not(emptyOrNullString())));
-        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakAdminSecret), is(MY_KEYCLOAK));
+        verifyDbAdminSecret(newEntandoKeycloakServer);
+        verifyKeycloakDbSecret(newEntandoKeycloakServer);
+        verifyKeycloakAdminSecret(newEntandoKeycloakServer);
 
         //And a K8S Secret was created in the Keycloak deployment's namespace containing the CA keystore
         NamedArgumentCaptor<Secret> tlsSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK + "-tls-secret");
@@ -232,6 +211,38 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
 
     }
 
+    private void verifyKeycloakAdminSecret(EntandoKeycloakServer newEntandoKeycloakServer) {
+        //And a K8S Secret was created in the Keycloak deployment's namespace with a name that reflects the EntandoKeycloakServer and the
+        // fact
+        // that it is Keycloak admin secret
+        NamedArgumentCaptor<Secret> keycloakAdminSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_ADMIN_SECRET);
+        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), keycloakAdminSecretCaptor.capture());
+        Secret keycloakAdminSecret = keycloakAdminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(keycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakAdminSecret), is(not(emptyOrNullString())));
+        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakAdminSecret), is(MY_KEYCLOAK));
+    }
+
+    private void verifyKeycloakDbSecret(EntandoKeycloakServer newEntandoKeycloakServer) {
+        //And a K8S Secret was created with a name that reflects the EntandoKeycloakServer and the fact that it is the keycloakd db secret
+        NamedArgumentCaptor<Secret> keycloakDbSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_DB_SECRET);
+        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), keycloakDbSecretCaptor.capture());
+        Secret keycloakDbSecret = keycloakDbSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(keycloakDbSecret), is(MY_KEYCLOAK_DATABASE));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakDbSecret), is(not(emptyOrNullString())));
+        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakDbSecret), is(MY_KEYCLOAK));
+    }
+
+    private void verifyDbAdminSecret(EntandoKeycloakServer newEntandoKeycloakServer) {
+        //Then a K8S Secret was created with a name that reflects the EntandoKeycloakServer and the fact that it is an admin secret
+        NamedArgumentCaptor<Secret> adminSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_DB_ADMIN_SECRET);
+        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), adminSecretCaptor.capture());
+        Secret theDbAdminSecret = adminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(theDbAdminSecret), is("root"));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(theDbAdminSecret), is(not(emptyOrNullString())));
+        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(theDbAdminSecret), is(MY_KEYCLOAK));
+    }
+
     @Test
     void testWithExistingAdminSecret() {
         //Given I have an EntandoKeycloakServer custom resource with MySQL as database
@@ -250,22 +261,13 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //A K8S Secret was created in the Keycloak deployment's namespace with a name that reflects the EntandoKeycloakServer and the
         // fact
         // that it is Keycloak admin secret
-        NamedArgumentCaptor<Secret> keycloakAdminSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_ADMIN_SECRET);
-        verify(client.secrets()).createSecretIfAbsent(eq(newEntandoKeycloakServer), keycloakAdminSecretCaptor.capture());
-        Secret keycloakAdminSecret = keycloakAdminSecretCaptor.getValue();
-        assertThat(theKey(KubeUtils.USERNAME_KEY).on(keycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
-        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(keycloakAdminSecret), is(not(emptyOrNullString())));
-        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(keycloakAdminSecret), is(MY_KEYCLOAK));
+        verifyKeycloakAdminSecret(newEntandoKeycloakServer);
+        verifyControllerLocalKeycloakAdminSecret();
+        verifyDefaultKeycloakSecret(existingAdminSecret);
 
-        //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
-        // Admin Secret, with the same state as the existing admin secret
-        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
-                KeycloakName.forTheAdminSecret(keycloakServer));
-        verify(client.secrets()).overwriteControllerSecret(localKeycloakAdminSecretCaptor.capture());
-        Secret localKeycloakAdminSecret = localKeycloakAdminSecretCaptor.getValue();
-        assertThat(theKey(KubeUtils.USERNAME_KEY).on(localKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
-        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(localKeycloakAdminSecret), is(MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD));
+    }
 
+    private void verifyDefaultKeycloakSecret(Secret existingAdminSecret) {
         //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
         // Admin Secret, with the same state as the existing admin secret
         NamedArgumentCaptor<Secret> myLocalKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
@@ -274,6 +276,17 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         Secret myLocalKeycloakAdminSecret = myLocalKeycloakAdminSecretCaptor.getValue();
         assertThat(theKey(KubeUtils.USERNAME_KEY).on(myLocalKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
         assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(myLocalKeycloakAdminSecret), is(MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD));
+    }
+
+    private void verifyControllerLocalKeycloakAdminSecret() {
+        //And a K8S Secret was created in the controllers' namespace with a name that reflects the fact that it is the default Keycloak
+        // Admin Secret, with the same state as the existing admin secret
+        NamedArgumentCaptor<Secret> localKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
+                KeycloakName.forTheAdminSecret(keycloakServer));
+        verify(client.secrets()).overwriteControllerSecret(localKeycloakAdminSecretCaptor.capture());
+        Secret localKeycloakAdminSecret = localKeycloakAdminSecretCaptor.getValue();
+        assertThat(theKey(KubeUtils.USERNAME_KEY).on(localKeycloakAdminSecret), is(MY_KEYCLOAK_ADMIN_USERNAME));
+        assertThat(theKey(KubeUtils.PASSSWORD_KEY).on(localKeycloakAdminSecret), is(MY_EXISTING_KEYCLOAK_ADMIN_PASSWORD));
     }
 
     @Test

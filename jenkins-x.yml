@@ -13,6 +13,8 @@ pipelineConfig:
       value: entando/entando-k8s-dbjob@sha256:660d3af5b44fb3d443b36f58515b880210517fa4e3061925a41c46ea552d61d2
     - name: RELATED_IMAGE_ENTANDO_REDHAT_SSO
       value: entando/entando-redhat-sso@sha256:a67ca13039479dbc13cd68380e4e33fa316397df20e96375c9b77e6022bd442e
+    - name: RELATED_IMAGE_RHEL8_POSTGRESQL_12
+      value: registry.redhat.io/rhel8/postgresql-12@sha256:c6b6da4f762c2f68bfe558efe954739438ffa2e9aae1c617b50011fb0eed8347
     - name: ENTANDO_TEST_REDHAT_REGISTRY_CREDENTIALS
       valueFrom:
         secretKeyRef:

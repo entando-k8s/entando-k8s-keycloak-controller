@@ -57,6 +57,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 //in execute component test
 @Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
+//Because SONAR doesn't recognize custom matchers and captors
+@SuppressWarnings({"java:S6068", "java:S6073"})
 class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, FluentTraversals, CommonLabels {
 
     static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
