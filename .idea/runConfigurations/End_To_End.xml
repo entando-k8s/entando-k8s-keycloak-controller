@@ -5,7 +5,7 @@
     <option name="MAIN_CLASS_NAME" value="" />
     <option name="METHOD_NAME" value="" />
     <option name="TEST_OBJECT" value="tags" />
-    <option name="VM_PARAMETERS" value="-ea -Dentando.default.routing.suffix=apps.serv.run -Dentando.k8s.operator.configmap.namespace=entando -Dentando.test.namespace.override=keycloak -Dentando.test.name.suffix=ab1 -Dentando.docker.image.version.default=6.0.0 -Dentando.oracle.internal.host=10.128.0.122 -Dentando.oracle.external.host=localhost -Dentando.oracle.database.name=xe -Dentando.oracle.admin.user=system -Dentando.oracle.admin.password=oracle -Dentando.docker.image.info.configmap=sadfafs" />
+    <option name="VM_PARAMETERS" value="-ea -Dentando.force.external.access.to.keycloak=true -Dentando.default.routing.suffix=apps.serv.run -Dentando.k8s.operator.configmap.namespace=entando -Dentando.disable.keycloak.ssl.requirement=true -Dentando.test.namespace.override=keycloak -Dentando.test.name.suffix=ab1 -Dentando.docker.image.version.default=6.0.0 -Dentando.oracle.internal.host=10.128.0.122 -Dentando.oracle.external.host=localhost -Dentando.oracle.database.name=xe -Dentando.oracle.admin.user=system -Dentando.oracle.admin.password=oracle -Dentando.docker.image.info.configmap=entando-docker-image-info-v6.3 -Dentando.test.redhat.registry.credentials=&quot;{\&quot;auths\&quot;:{\&quot;registry.connect.redhat.com\&quot;:{\&quot;auth\&quot;: \&quot;???\&quot;},\&quot;registry.redhat.io\&quot;:{\&quot;auth\&quot;: \&quot;???\&quot;}}}&quot; -Drelated.image.entando-k8s-dbjob=entando/entando-k8s-dbjob@sha256:660d3af5b44fb3d443b36f58515b880210517fa4e3061925a41c46ea552d61d2" />
     <option name="PARAMETERS" value="" />
     <tag value="end-to-end" />
     <method v="2">

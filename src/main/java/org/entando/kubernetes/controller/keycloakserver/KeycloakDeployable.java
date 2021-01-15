@@ -70,7 +70,7 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
 
     @Override
     public Optional<Long> getFileSystemUserAndGroupId() {
-        if (keycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK) == StandardKeycloakImage.KEYCLOAK) {
+        if (EntandoKeycloakHelper.determineStandardImage(keycloakServer) == StandardKeycloakImage.KEYCLOAK) {
             return Optional.of(KEYCLOAK_IMAGE_DEFAULT_USERID);
         } else {
             return Optional.of(REDHAT_SSO_IMAGE_DEFAULT_USERID);

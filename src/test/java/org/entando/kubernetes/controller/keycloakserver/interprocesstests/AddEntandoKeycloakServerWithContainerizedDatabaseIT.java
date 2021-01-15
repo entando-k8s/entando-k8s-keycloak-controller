@@ -48,7 +48,7 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
     }
 
     @ParameterizedTest
-    @EnumSource(value = EntandoOperatorComplianceMode.class, names = {"REDHAT", "COMMUNITY"})
+    @EnumSource(value = EntandoOperatorComplianceMode.class, names = {"COMMUNITY", "REDHAT"})
     void create(EntandoOperatorComplianceMode complianceMode) {
         //Given the operator runs in a specified complianceMode
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty(),

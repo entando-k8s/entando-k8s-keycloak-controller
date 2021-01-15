@@ -69,6 +69,7 @@ import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoRe
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.keycloakserver.KeycloakDeployable;
 import org.entando.kubernetes.controller.test.support.CommonLabels;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -119,9 +120,11 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
 
     @AfterEach
     void resetSystemProps() {
+        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_PATH_TO_TLS_KEYPAIR.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty());
+        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty());
     }
 
     @BeforeEach
@@ -391,9 +394,10 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
     }
 
     @Test
-    void testDeployment() {
+    void testKeycloakDeployment() {
         //Given we use version 6.0.0 of images by default
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty(), "6.0.0");
+        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty(), "true");
         //And the trust cert has been configured correctly
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
                 Paths.get("src", "test", "resources", "tls", "ampie.dynu.net", "ca.crt").normalize().toAbsolutePath().toString());
@@ -418,7 +422,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
                 MY_KEYCLOAK_DB_DEPLOYMENT);
         verify(client.deployments()).createOrPatchDeployment(eq(newEntandoKeycloakServer), dbDeploymentCaptor.capture());
         Deployment dbDeployment = dbDeploymentCaptor.getValue();
-        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment));
+        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment), "docker.io/centos/mysql-80-centos7:6.0.0");
         //With a Pod Template that has labels linking it to the previously created K8S Database Service
         assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_DB));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()),
@@ -432,7 +436,10 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //With a Pod Template that has labels linking it to the previously created K8S  Keycloak Service
         assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_SERVER));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK));
-        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment));
+        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment), "docker.io/entando/entando-keycloak:6.0.0");
+        verifyKeycloakSpecificEnvironmentVariables(theContainerNamed("server-container").on(serverDeployment));
+        assertThat(serverDeployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup(), is(
+                KeycloakDeployable.KEYCLOAK_IMAGE_DEFAULT_USERID));
 
         //And the Deployment state was reloaded from K8S for both deployments
         verify(client.deployments()).loadDeployment(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_DB_DEPLOYMENT));
@@ -450,13 +457,89 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, serverDeployment);
     }
 
-    private void verifyTheServerContainer(Container theServerContainer) {
+    @Test
+    void testRedHatDeployment() {
+        //Given we use version 6.0.0 of images by default
+        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty(), "6.0.0");
+        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty(), "redhat");
+        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty(), "true");
+        //And the trust cert has been configured correctly
+        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
+                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net", "ca.crt").normalize().toAbsolutePath().toString());
+        TlsHelper.getInstance().init();
+        //And K8S is receiving Deployment requests
+        DeploymentStatus serverDeploymentStatus = new DeploymentStatus();
+        DeploymentStatus dbDeploymentStatus = new DeploymentStatus();
+        //And  I have an EntandoKeycloakServer custom resource with MySQL as database
+        EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
+        //And K8S is receiving Deployment requests
+        lenient().when(client.deployments().loadDeployment(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_DB_DEPLOYMENT)))
+                .then(respondWithDeploymentStatus(dbDeploymentStatus));
+        //And K8S is receiving Deployment requests
+        lenient().when(client.deployments().loadDeployment(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_SERVER_DEPLOYMENT)))
+                .then(respondWithDeploymentStatus(serverDeploymentStatus));
+
+        //When the the EntandoKeycloakServerController is notified that a new EntandoKeycloakServer has been added
+        keycloakServerController.onStartup(new StartupEvent());
+
+        //Then two K8S deployments are created with a name that reflects the EntandoKeycloakServer name the
+        NamedArgumentCaptor<Deployment> dbDeploymentCaptor = forResourceNamed(Deployment.class,
+                MY_KEYCLOAK_DB_DEPLOYMENT);
+        verify(client.deployments()).createOrPatchDeployment(eq(newEntandoKeycloakServer), dbDeploymentCaptor.capture());
+        Deployment dbDeployment = dbDeploymentCaptor.getValue();
+        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment), "registry.redhat.io/rhel8/mysql-80:6.0.0");
+        //With a Pod Template that has labels linking it to the previously created K8S Database Service
+        assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_DB));
+        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()),
+                is(MY_KEYCLOAK));
+
+        // And a ServerDeployment
+        NamedArgumentCaptor<Deployment> serverDeploymentCaptor = forResourceNamed(Deployment.class,
+                MY_KEYCLOAK_SERVER_DEPLOYMENT);
+        verify(client.deployments()).createOrPatchDeployment(eq(newEntandoKeycloakServer), serverDeploymentCaptor.capture());
+        Deployment serverDeployment = serverDeploymentCaptor.getValue();
+        //With a Pod Template that has labels linking it to the previously created K8S  Keycloak Service
+        assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_SERVER));
+        assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK));
+        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment), "docker.io/entando/entando-redhat-sso:6.0.0");
+        verifyRedHatSsoSpecificEnvironmentVariablesOn(theContainerNamed("server-container").on(serverDeployment));
+        assertThat(serverDeployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup(),
+                is(KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID));
+        //And the Deployment state was reloaded from K8S for both deployments
+        verify(client.deployments()).loadDeployment(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_DB_DEPLOYMENT));
+        verify(client.deployments()).loadDeployment(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_SERVER_DEPLOYMENT));
+        //And K8S was instructed to update the status of the EntandoApp with the status of the service
+        verify(client.entandoResources(), atLeastOnce())
+                .updateStatus(eq(newEntandoKeycloakServer), argThat(matchesDeploymentStatus(dbDeploymentStatus)));
+        verify(client.entandoResources(), atLeastOnce())
+                .updateStatus(eq(newEntandoKeycloakServer), argThat(matchesDeploymentStatus(serverDeploymentStatus)));
+        assertThat(theVolumeNamed(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(serverDeployment).getSecret()
+                        .getSecretName(),
+                is(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+        //And all volumes have been mapped
+        verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, dbDeployment);
+        verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, serverDeployment);
+    }
+
+    private void verifyTheServerContainer(Container theServerContainer, String imageName) {
         //Exposing a port 8080
         assertThat(thePortNamed(SERVER_PORT).on(theServerContainer).getContainerPort(), is(8080));
         assertThat(thePortNamed(SERVER_PORT).on(theServerContainer).getProtocol(), is(TCP));
         //And that uses the image reflecting the custom registry and Entando image version specified
-        assertThat(theServerContainer.getImage(), is("docker.io/entando/entando-keycloak:6.0.0"));
+        assertThat(theServerContainer.getImage(), is(imageName));
         //And that is configured to point to the DB Service
+        assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
+        assertThat(theVolumeMountNamed(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
+                        .getMountPath(),
+                is(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+        assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
+                containsString(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
+                        + "/ca.crt"));
+
+        assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));
+    }
+
+    private void verifyKeycloakSpecificEnvironmentVariables(Container theServerContainer) {
         assertThat(theVariableReferenceNamed(KEYCLOAK_USER).on(theServerContainer).getSecretKeyRef().getName(),
                 is(MY_KEYCLOAK_ADMIN_SECRET));
         assertThat(theVariableReferenceNamed(KEYCLOAK_USER).on(theServerContainer).getSecretKeyRef().getKey(), is(KubeUtils.USERNAME_KEY));
@@ -474,18 +557,30 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
                 is(KubeUtils.USERNAME_KEY));
         assertThat(theVariableReferenceNamed(DB_PASSWORD).on(theServerContainer).getSecretKeyRef().getKey(),
                 is(KubeUtils.PASSSWORD_KEY));
-        assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
-        assertThat(theVolumeMountNamed(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
-                        .getMountPath(),
-                is(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
-        assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
-                containsString(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
-                        + "/ca.crt"));
-
-        assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));
     }
 
-    private void verifyTheDbContainer(Container theDbContainer) {
+    private void verifyRedHatSsoSpecificEnvironmentVariablesOn(Container theServerContainer) {
+        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(theServerContainer).getSecretKeyRef().getName(),
+                is(MY_KEYCLOAK_ADMIN_SECRET));
+        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(theServerContainer).getSecretKeyRef().getKey(),
+                is(KubeUtils.USERNAME_KEY));
+        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(theServerContainer).getSecretKeyRef().getName(),
+                is(MY_KEYCLOAK_ADMIN_SECRET));
+        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(theServerContainer).getSecretKeyRef().getKey(),
+                is(KubeUtils.PASSSWORD_KEY));
+        assertThat(theVariableNamed("DB_MYSQL_SERVICE_HOST").on(theServerContainer),
+                is(MY_KEYCLOAK_DB_SERVICE + "." + MY_KEYCLOAK_NAMESPACE + ".svc.cluster.local"));
+        assertThat(theVariableNamed("DB_MYSQL_SERVICE_PORT").on(theServerContainer), is("3306"));
+        assertThat(theVariableNamed(DB_DATABASE).on(theServerContainer), is("my_keycloak_db"));
+        assertThat(theVariableReferenceNamed("DB_USERNAME").on(theServerContainer).getSecretKeyRef().getName(),
+                is(MY_KEYCLOAK_DB_SECRET));
+        assertThat(theVariableReferenceNamed("DB_USERNAME").on(theServerContainer).getSecretKeyRef().getKey(),
+                is(KubeUtils.USERNAME_KEY));
+        assertThat(theVariableReferenceNamed(DB_PASSWORD).on(theServerContainer).getSecretKeyRef().getKey(),
+                is(KubeUtils.PASSSWORD_KEY));
+    }
+
+    private void verifyTheDbContainer(Container theDbContainer, String imageName) {
         //Exposing a port 3306
         assertThat(thePortNamed(DB_PORT).on(theDbContainer).getContainerPort(), is(3306));
         assertThat(thePortNamed(DB_PORT).on(theDbContainer).getProtocol(), is(TCP));
@@ -493,7 +588,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //Please note: the docker.io and 6.0.0 my seem counter-intuitive, but it indicates that we are
         //actually controlling the image as intended
         //With the correct version in the configmap this will work as planned
-        assertThat(theDbContainer.getImage(), is("docker.io/centos/mysql-80-centos7:6.0.0"));
+        assertThat(theDbContainer.getImage(), is(imageName));
     }
 
     @Test

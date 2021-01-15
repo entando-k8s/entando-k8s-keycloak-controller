@@ -16,11 +16,14 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
+import static java.lang.String.format;
+
 import io.fabric8.kubernetes.api.model.EnvVar;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -105,8 +108,13 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public List<EnvVar> getEnvironmentVariables() {
         List<EnvVar> vars = new ArrayList<>();
-        vars.add(new EnvVar("KEYCLOAK_USER", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
-        vars.add(new EnvVar("KEYCLOAK_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
+        if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
+            vars.add(new EnvVar("SSO_ADMIN_USERNAME", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
+            vars.add(new EnvVar("SSO_ADMIN_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
+        } else {
+            vars.add(new EnvVar("KEYCLOAK_USER", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
+            vars.add(new EnvVar("KEYCLOAK_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
+        }
         vars.add(new EnvVar("PROXY_ADDRESS_FORWARDING", "true", null));
         return vars;
     }
@@ -115,25 +123,19 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     public List<EnvVar> getDatabaseConnectionVariables() {
         List<EnvVar> vars = new ArrayList<>();
         if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
-            if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
-                vars.add(new EnvVar("DB_DRIVER", "h2", null));
-                vars.add(new EnvVar("DB_JNDI", "java:/redhat-sso-ds", null));
-                vars.add(new EnvVar("DATASOURCES", "DB", null));
-                vars.add(new EnvVar("DB_SERVICE_HOST", "dummy", null));
-                vars.add(new EnvVar("DB_SERVICE_PORT", "1234", null));
-            } else {
-                vars.add(new EnvVar("DB_VENDOR", "h2", null));
-            }
+            vars.add(new EnvVar("DB_VENDOR", "h2", null));
         } else {
             DatabaseSchemaCreationResult databaseSchemaCreationResult = dbSchemas.get("db");
             if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
-                vars.add(new EnvVar("DB_SERVICE_HOST", databaseSchemaCreationResult.getInternalServiceHostname(), null));
-                vars.add(new EnvVar("DB_SERVICE_PORT", databaseSchemaCreationResult.getPort(), null));
-                vars.add(new EnvVar("DB_DRIVER", databaseSchemaCreationResult.getVendor().getName(), null));
-                vars.add(new EnvVar("DB_JNDI", "java:jboss/datasources/KeycloakDS", null));
+                String driverName = databaseSchemaCreationResult.getVendor().getVendorConfig().getName();
+                vars.add(new EnvVar(format("DB_%s_SERVICE_HOST", driverName.toUpperCase(Locale.ROOT)),
+                        databaseSchemaCreationResult.getInternalServiceHostname(), null));
+                vars.add(new EnvVar(format("DB_%s_SERVICE_PORT", driverName.toUpperCase(Locale.ROOT)),
+                        databaseSchemaCreationResult.getPort(), null));
+                vars.add(new EnvVar("DB_SERVICE_PREFIX_MAPPING", format("db-%s=DB", driverName), null));
                 vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaCreationResult.getUsernameRef()));
-                vars.add(new EnvVar("DATASOURCES", "DB", null));
             } else {
+
                 vars.add(new EnvVar("DB_ADDR", databaseSchemaCreationResult.getInternalServiceHostname(), null));
                 vars.add(new EnvVar("DB_PORT", databaseSchemaCreationResult.getPort(), null));
                 vars.add(new EnvVar("DB_SCHEMA", databaseSchemaCreationResult.getSchemaName(), null));
@@ -196,7 +198,11 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public String getVolumeMountPath() {
-        return "/opt/jboss/keycloak/standalone/data";
+        if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
+            return "/opt/eap/standalone/data";
+        } else {
+            return "/opt/jboss/keycloak/standalone/data";
+        }
     }
 
     @Override
