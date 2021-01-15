@@ -501,7 +501,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //With a Pod Template that has labels linking it to the previously created K8S  Keycloak Service
         assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_SERVER));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK));
-        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment), "docker.io/entando/entando-redhat-sso");
+        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment), "entando/entando-redhat-sso");
         verifyRedHatSsoSpecificEnvironmentVariablesOn(theContainerNamed("server-container").on(serverDeployment));
         assertThat(serverDeployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup(),
                 is(KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID));
