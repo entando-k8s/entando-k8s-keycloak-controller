@@ -435,7 +435,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
                 MY_KEYCLOAK_DB_DEPLOYMENT);
         verify(client.deployments()).createOrPatchDeployment(eq(newEntandoKeycloakServer), dbDeploymentCaptor.capture());
         Deployment dbDeployment = dbDeploymentCaptor.getValue();
-        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment), "docker.io/centos/mysql-80-centos7:6.0.0");
+        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment), "docker.io/centos/mysql-80-centos7:latest");
         //With a Pod Template that has labels linking it to the previously created K8S Database Service
         assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_DB));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()),
@@ -500,7 +500,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
                 MY_KEYCLOAK_DB_DEPLOYMENT);
         verify(client.deployments()).createOrPatchDeployment(eq(newEntandoKeycloakServer), dbDeploymentCaptor.capture());
         Deployment dbDeployment = dbDeploymentCaptor.getValue();
-        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment), "registry.redhat.io/rhel8/mysql-80:6.0.0");
+        verifyTheDbContainer(theContainerNamed("db-container").on(dbDeployment), "registry.redhat.io/rhel8/mysql-80:latest");
         //With a Pod Template that has labels linking it to the previously created K8S Database Service
         assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_DB));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(dbDeployment.getSpec().getTemplate()),
