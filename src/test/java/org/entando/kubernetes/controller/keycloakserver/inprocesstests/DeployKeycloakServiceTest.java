@@ -501,7 +501,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //With a Pod Template that has labels linking it to the previously created K8S  Keycloak Service
         assertThat(theLabel(DEPLOYMENT_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK_SERVER));
         assertThat(theLabel(KEYCLOAK_SERVER_LABEL_NAME).on(serverDeployment.getSpec().getTemplate()), is(MY_KEYCLOAK));
-        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment), "docker.io/entando/entando-redhat-sso:6.0.0");
+        verifyTheServerContainer(theContainerNamed("server-container").on(serverDeployment), "docker.io/entando/entando-redhat-sso");
         verifyRedHatSsoSpecificEnvironmentVariablesOn(theContainerNamed("server-container").on(serverDeployment));
         assertThat(serverDeployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup(),
                 is(KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID));
@@ -526,7 +526,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         assertThat(thePortNamed(SERVER_PORT).on(theServerContainer).getContainerPort(), is(8080));
         assertThat(thePortNamed(SERVER_PORT).on(theServerContainer).getProtocol(), is(TCP));
         //And that uses the image reflecting the custom registry and Entando image version specified
-        assertThat(theServerContainer.getImage(), is(imageName));
+        assertThat(theServerContainer.getImage(), containsString(imageName));
         //And that is configured to point to the DB Service
         assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
         assertThat(theVolumeMountNamed(SecretCreator.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
