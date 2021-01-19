@@ -136,7 +136,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
                     .withName(KeycloakName.forTheAdminSecret(newEntandoKeycloakServer))
                     .endMetadata()
                     .addToStringData(KubeUtils.USERNAME_KEY, "entando_keycloak_admin")
-                    .addToStringData(KubeUtils.PASSSWORD_KEY, RandomStringUtils.randomAlphanumeric(10))
+                    .addToStringData(KubeUtils.PASSSWORD_KEY, KubeUtils.randomAlphanumeric(12))
                     .build();
             k8sClient.secrets().overwriteControllerSecret(existingKeycloakAdminSecret);
 
@@ -146,10 +146,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
 
     private DatabaseServiceResult prepareKeycloakDatabaseService(EntandoKeycloakServer newEntandoKeycloakServer) {
         // Create database for Keycloak
-        return prepareDatabaseService(
-                newEntandoKeycloakServer,
-                EntandoKeycloakHelper.determineDbmsVendor(newEntandoKeycloakServer),
-                "db");
+        return prepareDatabaseService(newEntandoKeycloakServer, EntandoKeycloakHelper.determineDbmsVendor(newEntandoKeycloakServer));
     }
 
     private void ensureKeycloakRealm(KeycloakConnectionConfig keycloakConnectionConfig) {

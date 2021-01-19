@@ -6,8 +6,7 @@ LABEL name="Entando K8S Keycloak Controller" \
       release="6" \
       summary="This container processes EntandoKeycloakServer custom resources." \
       description="This is a run-to-completion container. It will deploy a Keycloak or RedHat SSO server to your cluster \
-                   when it is executed with environment variables that point to a new EntandoKeycloakServer. \
-                   Subsequent executions of this container against the same EntandoKeycloakServer will patch the exsiting \
+                   Subsequent executions of this container against the same EntandoKeycloakServer will patch the existing \
                    deployment resources"
 ENV JAVA_OPTIONS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 ENV AB_ENABLED=jmx_exporter
