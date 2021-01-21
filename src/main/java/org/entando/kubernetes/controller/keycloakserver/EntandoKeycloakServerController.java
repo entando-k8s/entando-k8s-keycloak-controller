@@ -27,7 +27,6 @@ import io.quarkus.runtime.StartupEvent;
 import java.util.Optional;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.entando.kubernetes.controller.AbstractDbAwareController;
 import org.entando.kubernetes.controller.IngressingDeployCommand;
 import org.entando.kubernetes.controller.KeycloakConnectionConfig;
@@ -40,7 +39,7 @@ import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
 
-public class EntandoKeycloakServerController extends AbstractDbAwareController<EntandoKeycloakServer> {
+public class EntandoKeycloakServerController extends AbstractDbAwareController<EntandoKeycloakServerSpec, EntandoKeycloakServer> {
 
     @Inject
     public EntandoKeycloakServerController(KubernetesClient kubernetesClient) {

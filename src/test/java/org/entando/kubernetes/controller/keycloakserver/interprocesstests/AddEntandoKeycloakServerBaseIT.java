@@ -60,7 +60,7 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     @BeforeEach
     @SuppressWarnings("unchecked")
     public void cleanup() {
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_NAMESPACE_TO_OBSERVE.getJvmSystemProperty(),
+        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_NAMESPACES_TO_OBSERVE.getJvmSystemProperty(),
                 TestFixturePreparation.ENTANDO_CONTROLLERS_NAMESPACE);
         client = helper.getClient();
         //Reset all namespaces as they depend on previously created Keycloak clients that are now invalid
