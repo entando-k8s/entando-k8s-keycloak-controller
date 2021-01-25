@@ -83,11 +83,6 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
     }
 
     @Override
-    public DatabaseServiceResult getDatabaseServiceResult() {
-        return databaseServiceResult;
-    }
-
-    @Override
     public String getNameQualifier() {
         return KubeUtils.DEFAULT_SERVER_QUALIFIER;
     }
@@ -118,7 +113,7 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
     }
 
     @Override
-    public List<Secret> buildSecrets() {
+    public List<Secret> getSecrets() {
         return Arrays.asList(keycloakAdminSecret);
     }
 }

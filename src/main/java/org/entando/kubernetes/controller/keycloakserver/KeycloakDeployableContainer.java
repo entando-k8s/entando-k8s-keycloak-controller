@@ -20,11 +20,9 @@ import static java.lang.String.format;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.entando.kubernetes.controller.EntandoOperatorConfig;
@@ -32,11 +30,10 @@ import org.entando.kubernetes.controller.FluentTernary;
 import org.entando.kubernetes.controller.KubeUtils;
 import org.entando.kubernetes.controller.common.DockerImageInfo;
 import org.entando.kubernetes.controller.creators.SecretCreator;
-import org.entando.kubernetes.controller.database.DatabaseSchemaCreationResult;
+import org.entando.kubernetes.controller.database.DatabaseSchemaConnectionInfo;
 import org.entando.kubernetes.controller.database.DatabaseServiceResult;
 import org.entando.kubernetes.controller.database.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.ConfigurableResourceContainer;
-import org.entando.kubernetes.controller.spi.DatabasePopulator;
 import org.entando.kubernetes.controller.spi.DbAware;
 import org.entando.kubernetes.controller.spi.DefaultDockerImageInfo;
 import org.entando.kubernetes.controller.spi.IngressingContainer;
@@ -56,11 +53,15 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     private final EntandoKeycloakServer keycloakServer;
     private final DatabaseServiceResult databaseServiceResult;
-    private Map<String, DatabaseSchemaCreationResult> dbSchemas;
+    private List<DatabaseSchemaConnectionInfo> databaseSchemaConnectionInfos;
 
     public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult) {
         this.keycloakServer = keycloakServer;
         this.databaseServiceResult = databaseServiceResult;
+        databaseSchemaConnectionInfos = Optional.ofNullable(databaseServiceResult)
+                .map(databaseServiceResult1 -> DbAware.buildDatabaseSchemaConnectionInfo(keycloakServer,
+                        databaseServiceResult, Collections.singletonList("db")))
+                .orElse(Collections.emptyList());
     }
 
     public static String secretName(EntandoKeycloakServer keycloakServer) {
@@ -125,25 +126,25 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
             vars.add(new EnvVar("DB_VENDOR", "h2", null));
         } else {
-            DatabaseSchemaCreationResult databaseSchemaCreationResult = dbSchemas.get("db");
+            DatabaseSchemaConnectionInfo DatabaseSchemaConnectionInfo = databaseSchemaConnectionInfos.get(0);
             if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
-                String driverName = databaseSchemaCreationResult.getVendor().getVendorConfig().getName();
+                String driverName = DatabaseSchemaConnectionInfo.getVendor().getVendorConfig().getName();
                 vars.add(new EnvVar(format("DB_%s_SERVICE_HOST", driverName.toUpperCase(Locale.ROOT)),
-                        databaseSchemaCreationResult.getInternalServiceHostname(), null));
+                        DatabaseSchemaConnectionInfo.getInternalServiceHostname(), null));
                 vars.add(new EnvVar(format("DB_%s_SERVICE_PORT", driverName.toUpperCase(Locale.ROOT)),
-                        databaseSchemaCreationResult.getPort(), null));
+                        DatabaseSchemaConnectionInfo.getPort(), null));
                 vars.add(new EnvVar("DB_SERVICE_PREFIX_MAPPING", format("db-%s=DB", driverName), null));
-                vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaCreationResult.getUsernameRef()));
+                vars.add(new EnvVar("DB_USERNAME", null, DatabaseSchemaConnectionInfo.getUsernameRef()));
             } else {
 
-                vars.add(new EnvVar("DB_ADDR", databaseSchemaCreationResult.getInternalServiceHostname(), null));
-                vars.add(new EnvVar("DB_PORT", databaseSchemaCreationResult.getPort(), null));
-                vars.add(new EnvVar("DB_SCHEMA", databaseSchemaCreationResult.getSchemaName(), null));
-                vars.add(new EnvVar("DB_USER", null, databaseSchemaCreationResult.getUsernameRef()));
+                vars.add(new EnvVar("DB_ADDR", DatabaseSchemaConnectionInfo.getInternalServiceHostname(), null));
+                vars.add(new EnvVar("DB_PORT", DatabaseSchemaConnectionInfo.getPort(), null));
+                vars.add(new EnvVar("DB_SCHEMA", DatabaseSchemaConnectionInfo.getSchemaName(), null));
+                vars.add(new EnvVar("DB_USER", null, DatabaseSchemaConnectionInfo.getUsernameRef()));
             }
-            vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaCreationResult), null));
-            vars.add(new EnvVar("DB_DATABASE", databaseSchemaCreationResult.getDatabase(), null));
-            vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaCreationResult.getPasswordRef()));
+            vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(DatabaseSchemaConnectionInfo), null));
+            vars.add(new EnvVar("DB_DATABASE", DatabaseSchemaConnectionInfo.getDatabase(), null));
+            vars.add(new EnvVar("DB_PASSWORD", null, DatabaseSchemaConnectionInfo.getPasswordRef()));
             vars.add(new EnvVar("JDBC_PARAMS",
                     databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
                             .collect(
@@ -151,6 +152,11 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
         }
         return vars;
+    }
+
+    @Override
+    public List<DatabaseSchemaConnectionInfo> getSchemaConnectionInfo() {
+        return this.databaseSchemaConnectionInfos;
     }
 
     @Override
@@ -166,9 +172,9 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         return vars;
     }
 
-    private String determineKeycloaksNonStandardDbVendorName(DatabaseSchemaCreationResult databaseSchemaCreationResult) {
-        return FluentTernary.use("postgres").when(databaseSchemaCreationResult.getVendor().getVendorConfig() == DbmsVendorConfig.POSTGRESQL)
-                .orElse(databaseSchemaCreationResult.getVendor().getVendorConfig().getName());
+    private String determineKeycloaksNonStandardDbVendorName(DatabaseSchemaConnectionInfo DatabaseSchemaConnectionInfo) {
+        return FluentTernary.use("postgres").when(DatabaseSchemaConnectionInfo.getVendor().getVendorConfig() == DbmsVendorConfig.POSTGRESQL)
+                .orElse(DatabaseSchemaConnectionInfo.getVendor().getVendorConfig().getName());
     }
 
     @Override
@@ -179,21 +185,6 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public Optional<String> getHealthCheckPath() {
         return Optional.of(getWebContextPath());
-    }
-
-    @Override
-    public List<String> getDbSchemaQualifiers() {
-        if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
-            return Collections.emptyList();
-        } else {
-            return Arrays.asList("db");
-        }
-    }
-
-    @Override
-    public Optional<DatabasePopulator> useDatabaseSchemas(Map<String, DatabaseSchemaCreationResult> dbSchemas) {
-        this.dbSchemas = dbSchemas;
-        return Optional.empty();
     }
 
     @Override
