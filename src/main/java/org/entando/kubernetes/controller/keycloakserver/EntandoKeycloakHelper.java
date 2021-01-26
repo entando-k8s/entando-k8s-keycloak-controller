@@ -16,8 +16,8 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
-import org.entando.kubernetes.controller.EntandoOperatorComplianceMode;
-import org.entando.kubernetes.controller.EntandoOperatorConfig;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
@@ -30,7 +30,7 @@ public class EntandoKeycloakHelper {
 
     public static StandardKeycloakImage determineStandardImage(EntandoKeycloakServer entandoKeycloakServer) {
         StandardKeycloakImage standardKeycloakImage;
-        if (EntandoOperatorConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
+        if (EntandoOperatorSpiConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
             standardKeycloakImage = StandardKeycloakImage.REDHAT_SSO;
         } else {
             standardKeycloakImage = entandoKeycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK);
@@ -41,7 +41,7 @@ public class EntandoKeycloakHelper {
 
     public static DbmsVendor determineDbmsVendor(EntandoKeycloakServer entandoKeycloakServer) {
         DbmsVendor dbmsVendor;
-        if (EntandoOperatorConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
+        if (EntandoOperatorSpiConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
             dbmsVendor = entandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.POSTGRESQL);
         } else {
             dbmsVendor = entandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.EMBEDDED);

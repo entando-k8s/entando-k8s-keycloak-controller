@@ -25,21 +25,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.entando.kubernetes.controller.EntandoOperatorConfig;
-import org.entando.kubernetes.controller.FluentTernary;
-import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.common.DockerImageInfo;
-import org.entando.kubernetes.controller.creators.SecretCreator;
-import org.entando.kubernetes.controller.database.DatabaseSchemaConnectionInfo;
-import org.entando.kubernetes.controller.database.DatabaseServiceResult;
-import org.entando.kubernetes.controller.database.DbmsVendorConfig;
-import org.entando.kubernetes.controller.spi.ConfigurableResourceContainer;
-import org.entando.kubernetes.controller.spi.DbAware;
-import org.entando.kubernetes.controller.spi.DefaultDockerImageInfo;
-import org.entando.kubernetes.controller.spi.IngressingContainer;
-import org.entando.kubernetes.controller.spi.ParameterizableContainer;
-import org.entando.kubernetes.controller.spi.PersistentVolumeAware;
-import org.entando.kubernetes.controller.spi.TlsAware;
+import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
+import org.entando.kubernetes.controller.spi.common.NameUtils;
+import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.container.ConfigurableResourceContainer;
+import org.entando.kubernetes.controller.spi.container.DatabaseSchemaConnectionInfo;
+import org.entando.kubernetes.controller.spi.container.DbAware;
+import org.entando.kubernetes.controller.spi.container.DockerImageInfo;
+import org.entando.kubernetes.controller.spi.container.IngressingContainer;
+import org.entando.kubernetes.controller.spi.container.ParameterizableContainer;
+import org.entando.kubernetes.controller.spi.container.PersistentVolumeAware;
+import org.entando.kubernetes.controller.spi.container.TlsAware;
+import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
+import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
+import org.entando.kubernetes.controller.support.common.FluentTernary;
+import org.entando.kubernetes.controller.support.creators.SecretCreator;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.EntandoIngressingDeploymentSpec;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -70,7 +70,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public DockerImageInfo getDockerImageInfo() {
-        return new DefaultDockerImageInfo(keycloakServer.getSpec().getCustomImage()
+        return new DockerImageInfo(keycloakServer.getSpec().getCustomImage()
                 .orElse(determineStandardImageName()));
     }
 
@@ -98,7 +98,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public String getNameQualifier() {
-        return KubeUtils.DEFAULT_SERVER_QUALIFIER;
+        return NameUtils.DEFAULT_SERVER_QUALIFIER;
     }
 
     @Override
@@ -110,11 +110,14 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     public List<EnvVar> getEnvironmentVariables() {
         List<EnvVar> vars = new ArrayList<>();
         if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
-            vars.add(new EnvVar("SSO_ADMIN_USERNAME", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
-            vars.add(new EnvVar("SSO_ADMIN_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
+            vars.add(
+                    new EnvVar("SSO_ADMIN_USERNAME", null, SecretUtils.secretKeyRef(secretName(keycloakServer), SecretUtils.USERNAME_KEY)));
+            vars.add(new EnvVar("SSO_ADMIN_PASSWORD", null,
+                    SecretUtils.secretKeyRef(secretName(keycloakServer), SecretUtils.PASSSWORD_KEY)));
         } else {
-            vars.add(new EnvVar("KEYCLOAK_USER", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.USERNAME_KEY)));
-            vars.add(new EnvVar("KEYCLOAK_PASSWORD", null, KubeUtils.secretKeyRef(secretName(keycloakServer), KubeUtils.PASSSWORD_KEY)));
+            vars.add(new EnvVar("KEYCLOAK_USER", null, SecretUtils.secretKeyRef(secretName(keycloakServer), SecretUtils.USERNAME_KEY)));
+            vars.add(
+                    new EnvVar("KEYCLOAK_PASSWORD", null, SecretUtils.secretKeyRef(secretName(keycloakServer), SecretUtils.PASSSWORD_KEY)));
         }
         vars.add(new EnvVar("PROXY_ADDRESS_FORWARDING", "true", null));
         return vars;
@@ -162,10 +165,9 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public List<EnvVar> getTlsVariables() {
         List<EnvVar> vars = new ArrayList<>();
-        String certFiles = String.join(" ",
-                EntandoOperatorConfig.getCertificateAuthorityCertPaths().stream()
-                        .map(path -> SecretCreator.standardCertPathOf(path.getFileName().toString()))
-                        .collect(Collectors.toList()));
+        String certFiles = EntandoOperatorConfig.getCertificateAuthorityCertPaths().stream()
+                .map(path -> SecretCreator.standardCertPathOf(path.getFileName().toString()))
+                .collect(Collectors.joining(" "));
         vars.add(new EnvVar("X509_CA_BUNDLE",
                 "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
                         + certFiles, null));

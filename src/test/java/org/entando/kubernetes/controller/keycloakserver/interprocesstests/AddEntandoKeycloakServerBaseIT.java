@@ -28,9 +28,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.concurrent.TimeUnit;
-import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
-import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.common.KeycloakName;
 import org.entando.kubernetes.controller.integrationtest.support.ClusterInfrastructureIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig;
@@ -42,6 +39,10 @@ import org.entando.kubernetes.controller.integrationtest.support.K8SIntegrationT
 import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.TestFixturePreparation;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.common.NameUtils;
+import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.container.KeycloakName;
+import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.app.EntandoApp;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
 import org.entando.kubernetes.model.infrastructure.EntandoClusterInfrastructure;
@@ -117,13 +118,13 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
                 .withName(KeycloakName.forTheAdminSecret(entandoKeycloakServer))
                 .get();
         assertNotNull(adminSecret);
-        assertTrue(adminSecret.getData().containsKey(KubeUtils.USERNAME_KEY));
-        assertTrue(adminSecret.getData().containsKey(KubeUtils.PASSSWORD_KEY));
+        assertTrue(adminSecret.getData().containsKey(SecretUtils.USERNAME_KEY));
+        assertTrue(adminSecret.getData().containsKey(SecretUtils.PASSSWORD_KEY));
         ConfigMap configMap = client.configMaps()
                 .inNamespace(client.getNamespace())
                 .withName(KeycloakName.forTheConnectionConfigMap(entandoKeycloakServer))
                 .get();
         assertNotNull(configMap);
-        assertTrue(configMap.getData().containsKey(KubeUtils.URL_KEY));
+        assertTrue(configMap.getData().containsKey(NameUtils.URL_KEY));
     }
 }

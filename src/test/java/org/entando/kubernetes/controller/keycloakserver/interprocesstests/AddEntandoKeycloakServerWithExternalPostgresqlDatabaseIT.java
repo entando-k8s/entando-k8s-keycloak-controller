@@ -20,9 +20,9 @@ import static org.entando.kubernetes.model.DbmsVendor.POSTGRESQL;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 
-import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
+import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;

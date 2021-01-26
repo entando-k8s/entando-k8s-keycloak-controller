@@ -27,15 +27,15 @@ import io.quarkus.runtime.StartupEvent;
 import java.util.Optional;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import org.entando.kubernetes.controller.AbstractDbAwareController;
-import org.entando.kubernetes.controller.IngressingDeployCommand;
-import org.entando.kubernetes.controller.KeycloakConnectionConfig;
-import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.SimpleKeycloakClient;
-import org.entando.kubernetes.controller.common.KeycloakConnectionSecret;
-import org.entando.kubernetes.controller.common.KeycloakName;
-import org.entando.kubernetes.controller.database.DatabaseServiceResult;
-import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
+import org.entando.kubernetes.controller.spi.common.NameUtils;
+import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.container.KeycloakConnectionConfig;
+import org.entando.kubernetes.controller.spi.container.KeycloakName;
+import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
+import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
+import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
+import org.entando.kubernetes.controller.support.command.IngressingDeployCommand;
+import org.entando.kubernetes.controller.support.controller.AbstractDbAwareController;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
 
@@ -76,7 +76,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
                     .done();
 
         }
-        ensureKeycloakRealm(new KeycloakConnectionSecret(existingKeycloakAdminSecret, keycloakConnectionConfigMap));
+        ensureKeycloakRealm(new KeycloakConnectionConfig(existingKeycloakAdminSecret, keycloakConnectionConfigMap));
         k8sClient.entandoResources().updateStatus(newEntandoKeycloakServer, serviceDeploymentResult.getStatus());
     }
 
@@ -90,8 +90,8 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
                     .withNamespace(newEntandoKeycloakServer.getMetadata().getNamespace())
                     .withName(KeycloakName.forTheConnectionConfigMap(newEntandoKeycloakServer))
                     .endMetadata()
-                    .addToData(KubeUtils.URL_KEY, serviceDeploymentResult.getExternalBaseUrl())
-                    .addToData(KubeUtils.INTERNAL_URL_KEY, serviceDeploymentResult.getInternalBaseUrl()).build();
+                    .addToData(NameUtils.URL_KEY, serviceDeploymentResult.getExternalBaseUrl())
+                    .addToData(NameUtils.INTERNAL_URL_KEY, serviceDeploymentResult.getInternalBaseUrl()).build();
             k8sClient.secrets().createConfigMapIfAbsent(newEntandoKeycloakServer, newConfigMap);
             return newConfigMap;
         } else {
@@ -134,8 +134,8 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
                     .withNewMetadata()
                     .withName(KeycloakName.forTheAdminSecret(newEntandoKeycloakServer))
                     .endMetadata()
-                    .addToStringData(KubeUtils.USERNAME_KEY, "entando_keycloak_admin")
-                    .addToStringData(KubeUtils.PASSSWORD_KEY, KubeUtils.randomAlphanumeric(12))
+                    .addToStringData(SecretUtils.USERNAME_KEY, "entando_keycloak_admin")
+                    .addToStringData(SecretUtils.PASSSWORD_KEY, SecretUtils.randomAlphanumeric(12))
                     .build();
             k8sClient.secrets().overwriteControllerSecret(existingKeycloakAdminSecret);
 
@@ -152,7 +152,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         logger.severe(() -> format("Attempting to log into Keycloak at %s", keycloakConnectionConfig.determineBaseUrl()));
         keycloakClient.login(keycloakConnectionConfig.determineBaseUrl(), keycloakConnectionConfig.getUsername(),
                 keycloakConnectionConfig.getPassword());
-        keycloakClient.ensureRealm(KubeUtils.ENTANDO_DEFAULT_KEYCLOAK_REALM);
+        keycloakClient.ensureRealm(KeycloakName.ENTANDO_DEFAULT_KEYCLOAK_REALM);
     }
 
 }

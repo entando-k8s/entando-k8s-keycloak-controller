@@ -16,7 +16,7 @@
 
 package org.entando.kubernetes.controller.keycloakserver.interprocesstests;
 
-import static org.entando.kubernetes.controller.KubeUtils.snakeCaseOf;
+import static org.entando.kubernetes.controller.spi.common.NameUtils.snakeCaseOf;
 import static org.entando.kubernetes.model.DbmsVendor.ORACLE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;

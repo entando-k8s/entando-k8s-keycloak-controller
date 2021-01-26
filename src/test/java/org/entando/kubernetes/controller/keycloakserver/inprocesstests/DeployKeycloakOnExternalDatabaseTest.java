@@ -31,17 +31,18 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
-import org.entando.kubernetes.controller.KeycloakClientConfig;
-import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.SimpleKeycloakClient;
-import org.entando.kubernetes.controller.common.CreateExternalServiceCommand;
 import org.entando.kubernetes.controller.inprocesstest.InProcessTestUtil;
 import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.LabeledArgumentCaptor;
 import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.NamedArgumentCaptor;
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoResourceClientDouble;
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
-import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.container.KeycloakClientConfig;
+import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
+import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
+import org.entando.kubernetes.controller.support.command.CreateExternalServiceCommand;
+import org.entando.kubernetes.controller.support.common.KubeUtils;
 import org.entando.kubernetes.controller.test.support.CommonLabels;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.DbmsVendor;
@@ -78,12 +79,11 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
     private EntandoKeycloakServerController keycloakServerController;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setEntandoDatabaseServiceNamespace() {
         externalDatabase.getMetadata().setNamespace(keycloakServer.getMetadata().getNamespace());
         client.entandoResources().createOrPatchEntandoResource(externalDatabase);
         client.entandoResources().createOrPatchEntandoResource(keycloakServer);
-        keycloakServerController = new EntandoKeycloakServerController((SimpleK8SClient) client, keycloakClient);
+        keycloakServerController = new EntandoKeycloakServerController(client, keycloakClient);
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_ACTION, Action.ADDED.name());
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAME, keycloakServer.getMetadata().getName());
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAMESPACE, keycloakServer.getMetadata().getNamespace());
@@ -100,8 +100,8 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
         NamedArgumentCaptor<Secret> keycloakSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK_DB_SECRET);
         verify(client.secrets()).createSecretIfAbsent(eq(keycloakServer), keycloakSecretCaptor.capture());
         Secret keycloakSecret = keycloakSecretCaptor.getValue();
-        assertThat(keycloakSecret.getStringData().get(KubeUtils.USERNAME_KEY), is("my_keycloak_db"));
-        assertThat(keycloakSecret.getStringData().get(KubeUtils.PASSSWORD_KEY), is(not(emptyOrNullString())));
+        assertThat(keycloakSecret.getStringData().get(SecretUtils.USERNAME_KEY), is("my_keycloak_db"));
+        assertThat(keycloakSecret.getStringData().get(SecretUtils.PASSSWORD_KEY), is(not(emptyOrNullString())));
     }
 
     @Test

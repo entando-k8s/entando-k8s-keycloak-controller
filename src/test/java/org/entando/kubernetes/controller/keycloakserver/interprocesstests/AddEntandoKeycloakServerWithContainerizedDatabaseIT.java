@@ -24,11 +24,11 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import org.entando.kubernetes.controller.EntandoOperatorComplianceMode;
-import org.entando.kubernetes.controller.EntandoOperatorConfigProperty;
-import org.entando.kubernetes.controller.database.DbmsDockerVendorStrategy;
 import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
+import org.entando.kubernetes.controller.spi.common.DbmsDockerVendorStrategy;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
+import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;

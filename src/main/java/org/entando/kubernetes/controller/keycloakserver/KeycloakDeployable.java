@@ -16,7 +16,7 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
-import static org.entando.kubernetes.controller.KubeUtils.generateSecret;
+import static org.entando.kubernetes.controller.spi.common.SecretUtils.generateSecret;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -24,14 +24,15 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.database.DatabaseServiceResult;
-import org.entando.kubernetes.controller.spi.DbAwareDeployable;
-import org.entando.kubernetes.controller.spi.DeployableContainer;
-import org.entando.kubernetes.controller.spi.IngressingDeployable;
-import org.entando.kubernetes.controller.spi.Secretive;
+import org.entando.kubernetes.controller.spi.common.NameUtils;
+import org.entando.kubernetes.controller.spi.container.DeployableContainer;
+import org.entando.kubernetes.controller.spi.deployable.DbAwareDeployable;
+import org.entando.kubernetes.controller.spi.deployable.IngressingDeployable;
+import org.entando.kubernetes.controller.spi.deployable.Secretive;
+import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
@@ -45,15 +46,13 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
     public static final long REDHAT_SSO_IMAGE_DEFAULT_USERID = 185L;
     private final EntandoKeycloakServer keycloakServer;
     private final List<DeployableContainer> containers;
-    private final DatabaseServiceResult databaseServiceResult;
     private final Secret keycloakAdminSecret;
 
     public KeycloakDeployable(EntandoKeycloakServer keycloakServer,
             DatabaseServiceResult databaseServiceResult,
             Secret existingKeycloakAdminSecret) {
         this.keycloakServer = keycloakServer;
-        this.databaseServiceResult = databaseServiceResult;
-        this.containers = Arrays.asList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult));
+        this.containers = Collections.singletonList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult));
         this.keycloakAdminSecret = generateSecret(
                 this.keycloakServer,
                 KeycloakDeployableContainer.secretName(this.keycloakServer),
@@ -84,7 +83,7 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
 
     @Override
     public String getNameQualifier() {
-        return KubeUtils.DEFAULT_SERVER_QUALIFIER;
+        return NameUtils.DEFAULT_SERVER_QUALIFIER;
     }
 
     @Override
@@ -104,7 +103,7 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
 
     @Override
     public String getIngressName() {
-        return KubeUtils.standardIngressName(keycloakServer);
+        return NameUtils.standardIngressName(keycloakServer);
     }
 
     @Override
