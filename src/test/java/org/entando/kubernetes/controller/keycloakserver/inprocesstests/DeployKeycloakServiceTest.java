@@ -558,7 +558,8 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
     private void verifyKeycloakSpecificEnvironmentVariables(Container theServerContainer) {
         assertThat(theVariableReferenceNamed(KEYCLOAK_USER).on(theServerContainer).getSecretKeyRef().getName(),
                 is(MY_KEYCLOAK_ADMIN_SECRET));
-        assertThat(theVariableReferenceNamed(KEYCLOAK_USER).on(theServerContainer).getSecretKeyRef().getKey(), is(SecretUtils.USERNAME_KEY));
+        assertThat(theVariableReferenceNamed(KEYCLOAK_USER).on(theServerContainer).getSecretKeyRef().getKey(),
+                is(SecretUtils.USERNAME_KEY));
         assertThat(theVariableReferenceNamed(KEYCLOAK_PASSWORD).on(theServerContainer).getSecretKeyRef().getName(),
                 is(MY_KEYCLOAK_ADMIN_SECRET));
         assertThat(theVariableReferenceNamed(KEYCLOAK_PASSWORD).on(theServerContainer).getSecretKeyRef().getKey(),
