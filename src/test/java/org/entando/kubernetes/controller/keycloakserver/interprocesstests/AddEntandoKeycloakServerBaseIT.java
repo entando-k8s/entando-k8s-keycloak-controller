@@ -59,7 +59,6 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     protected KubernetesClient client;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     public void cleanup() {
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_NAMESPACES_TO_OBSERVE.getJvmSystemProperty(),
                 TestFixturePreparation.ENTANDO_CONTROLLERS_NAMESPACE);
