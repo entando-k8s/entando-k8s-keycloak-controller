@@ -41,7 +41,7 @@ import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
 import org.entando.kubernetes.controller.support.creators.SecretCreator;
 import org.entando.kubernetes.model.DbmsVendor;
-import org.entando.kubernetes.model.EntandoIngressingDeploymentSpec;
+import org.entando.kubernetes.model.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
@@ -53,7 +53,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     private final EntandoKeycloakServer keycloakServer;
     private final DatabaseServiceResult databaseServiceResult;
-    private List<DatabaseSchemaConnectionInfo> databaseSchemaConnectionInfos;
+    private final List<DatabaseSchemaConnectionInfo> databaseSchemaConnectionInfos;
 
     public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult) {
         this.keycloakServer = keycloakServer;
@@ -157,6 +157,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         return vars;
     }
 
+
     @Override
     public List<DatabaseSchemaConnectionInfo> getSchemaConnectionInfo() {
         return this.databaseSchemaConnectionInfos;
@@ -199,7 +200,12 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
-    public EntandoIngressingDeploymentSpec getCustomResourceSpec() {
-        return keycloakServer.getSpec();
+    public Optional<EntandoResourceRequirements> getResourceRequirementsOverride() {
+        return keycloakServer.getSpec().getResourceRequirements();
+    }
+
+    @Override
+    public List<EnvVar> getEnvironmentVariableOverrides() {
+        return keycloakServer.getSpec().getEnvironmentVariables();
     }
 }

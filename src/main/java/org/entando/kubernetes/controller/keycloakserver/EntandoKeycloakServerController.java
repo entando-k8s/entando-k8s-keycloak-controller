@@ -24,7 +24,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.runtime.StartupEvent;
-import java.util.Optional;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
@@ -119,9 +118,8 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
                 newEntandoKeycloakServer,
                 databaseServiceResult,
                 existingKeycloakAdminSecret);
-        IngressingDeployCommand<KeycloakServiceDeploymentResult, EntandoKeycloakServerSpec> keycloakCommand = new IngressingDeployCommand<>(
-                keycloakDeployable);
-        return keycloakCommand.execute(k8sClient, Optional.of(keycloakClient)).withStatus(keycloakCommand.getStatus());
+        IngressingDeployCommand<KeycloakServiceDeploymentResult> keycloakCommand = new IngressingDeployCommand<>(keycloakDeployable);
+        return keycloakCommand.execute(k8sClient, keycloakClient).withStatus(keycloakCommand.getStatus());
     }
 
     private Secret prepareKeycloakAdminSecretInControllerNamespace(EntandoKeycloakServer newEntandoKeycloakServer) {

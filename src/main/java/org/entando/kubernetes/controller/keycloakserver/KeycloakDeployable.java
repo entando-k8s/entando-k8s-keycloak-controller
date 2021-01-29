@@ -30,16 +30,14 @@ import java.util.Optional;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.container.DeployableContainer;
 import org.entando.kubernetes.controller.spi.deployable.DbAwareDeployable;
-import org.entando.kubernetes.controller.spi.deployable.IngressingDeployable;
 import org.entando.kubernetes.controller.spi.deployable.Secretive;
 import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
-import org.entando.kubernetes.model.DbmsVendor;
+import org.entando.kubernetes.controller.support.spibase.IngressingDeployableBase;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
-import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
-public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceDeploymentResult, EntandoKeycloakServerSpec>,
-        DbAwareDeployable,
+public class KeycloakDeployable
+        implements IngressingDeployableBase<KeycloakServiceDeploymentResult>, DbAwareDeployable<KeycloakServiceDeploymentResult>,
         Secretive {
 
     public static final long KEYCLOAK_IMAGE_DEFAULT_USERID = 1000L;
@@ -59,12 +57,6 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
                 "entando_keycloak_admin");
         this.keycloakAdminSecret.setStringData(existingKeycloakAdminSecret.getStringData());
         this.keycloakAdminSecret.setData(existingKeycloakAdminSecret.getData());
-    }
-
-    @Override
-    public boolean hasContainersExpectingSchemas() {
-        DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(keycloakServer);
-        return dbmsVendor != DbmsVendor.EMBEDDED;
     }
 
     @Override
@@ -94,6 +86,11 @@ public class KeycloakDeployable implements IngressingDeployable<KeycloakServiceD
     @Override
     public KeycloakServiceDeploymentResult createResult(Deployment deployment, Service service, Ingress ingress, Pod pod) {
         return new KeycloakServiceDeploymentResult(pod, service, ingress);
+    }
+
+    @Override
+    public String getServiceAccountToUse() {
+        return keycloakServer.getSpec().getServiceAccountToUse().orElse(getDefaultServiceAccountName());
     }
 
     @Override

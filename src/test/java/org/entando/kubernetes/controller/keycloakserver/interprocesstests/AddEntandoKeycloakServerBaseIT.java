@@ -28,7 +28,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.concurrent.TimeUnit;
-import org.entando.kubernetes.controller.integrationtest.support.ClusterInfrastructureIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig;
 import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig.TestTarget;
@@ -45,7 +44,6 @@ import org.entando.kubernetes.controller.spi.container.KeycloakName;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.app.EntandoApp;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
-import org.entando.kubernetes.model.infrastructure.EntandoClusterInfrastructure;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import org.entando.kubernetes.model.plugin.EntandoPlugin;
@@ -68,8 +66,6 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
                 .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
                 .deleteAll(EntandoDatabaseService.class)
                 .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
-                .deleteAll(EntandoClusterInfrastructure.class)
-                .fromNamespace(ClusterInfrastructureIntegrationTestHelper.CLUSTER_INFRASTRUCTURE_NAMESPACE)
                 .deleteAll(EntandoApp.class)
                 .fromNamespace(EntandoAppIntegrationTestHelper.TEST_NAMESPACE)
                 .deleteAll(EntandoPlugin.class)
