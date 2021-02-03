@@ -66,6 +66,7 @@
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
         <entando-k8s-operator-common.version>6.3.1</entando-k8s-operator-common.version>
         <entando-k8s-custom-model.version>6.3.0</entando-k8s-custom-model.version>
+        <skipLicenseDownload>true</skipLicenseDownload>
         <preDeploymentTestGroups>pre-deployment</preDeploymentTestGroups>
         <postDeploymentTestGroups>post-deployment</postDeploymentTestGroups>
     </properties>
