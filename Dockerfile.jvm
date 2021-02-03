@@ -1,5 +1,5 @@
 #FROM entando/entando-ubi8-java11-base:6.3.0
-FROM entando/entando-k8s-operator-common@sha256:0233f2671510faa2e25e5641192eea27c1e089398238df1b5b5cc4337e4744c4
+FROM entando/entando-k8s-operator-common:6.3.1
 
 ARG VERSION
 LABEL name="Entando K8S Keycloak Controller" \
