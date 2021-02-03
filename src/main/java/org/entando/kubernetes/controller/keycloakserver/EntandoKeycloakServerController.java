@@ -27,6 +27,7 @@ import io.quarkus.runtime.StartupEvent;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
+import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.KeycloakConnectionConfig;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
@@ -88,6 +89,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
             ConfigMap newConfigMap = new ConfigMapBuilder().withNewMetadata()
                     .withNamespace(newEntandoKeycloakServer.getMetadata().getNamespace())
                     .withName(KeycloakName.forTheConnectionConfigMap(newEntandoKeycloakServer))
+                    .addToOwnerReferences(ResourceUtils.buildOwnerReference(newEntandoKeycloakServer))
                     .endMetadata()
                     .addToData(NameUtils.URL_KEY, serviceDeploymentResult.getExternalBaseUrl())
                     .addToData(NameUtils.INTERNAL_URL_KEY, serviceDeploymentResult.getInternalBaseUrl()).build();
@@ -126,7 +128,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         Secret existingKeycloakAdminSecret = k8sClient.secrets()
                 .loadControllerSecret(KeycloakName.forTheAdminSecret(newEntandoKeycloakServer));
         if (existingKeycloakAdminSecret == null) {
-            //We need to FIRST populate the secret in the controller's namespace so that, if deployment fails, we have the credentials
+            //We need to FIRST populate the secret in the operator's namespace so that, if deployment fails, we have the credentials
             // that the secret in the Deployment's namespace was based on, because we may not have read access to it.
             existingKeycloakAdminSecret = new SecretBuilder()
                     .withNewMetadata()
