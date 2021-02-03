@@ -30,16 +30,17 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
-import org.entando.kubernetes.controller.KeycloakClientConfig;
-import org.entando.kubernetes.controller.KubeUtils;
-import org.entando.kubernetes.controller.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.inprocesstest.InProcessTestUtil;
 import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.LabeledArgumentCaptor;
 import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.NamedArgumentCaptor;
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoResourceClientDouble;
 import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
-import org.entando.kubernetes.controller.k8sclient.SimpleK8SClient;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.container.KeycloakClientConfig;
+import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
+import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
+import org.entando.kubernetes.controller.support.common.KubeUtils;
+import org.entando.kubernetes.controller.test.support.CommonLabels;
 import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.DoneableEntandoKeycloakServer;
@@ -56,7 +57,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 //in execute component test
 @Tags({@Tag("in-process"), @Tag("component"), @Tag("pre-deployment")})
-class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, FluentTraversals {
+//Because SONAR doesn't recognize custom matchers and captors
+@SuppressWarnings({"java:S6068", "java:S6073"})
+class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, FluentTraversals, CommonLabels {
 
     static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
     private static final String MY_KEYCLOAK_DB_SECRET = MY_KEYCLOAK + "-db-secret";
@@ -101,8 +104,8 @@ class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, 
         verify(client.deployments()).createOrPatchDeployment(eq(keycloakServer), keycloakDeploymentCaptor.capture());
         Deployment deployment = keycloakDeploymentCaptor.getValue();
         //Then no database schema preparation job was invoked
-        LabeledArgumentCaptor<Pod> keycloakSchemaJobCaptor = forResourceWithLabel(Pod.class, KEYCLOAK_SERVER_LABEL_NAME, MY_KEYCLOAK)
-                .andWithLabel(KubeUtils.DB_JOB_LABEL_NAME, MY_KEYCLOAK + "-db-preparation-job");
+        LabeledArgumentCaptor<Pod> keycloakSchemaJobCaptor = forResourceWithLabels(Pod.class,
+                dbPreparationJobLabels(keycloakServer, "server"));
         verify(client.pods(), never()).runToCompletion(keycloakSchemaJobCaptor.capture());
         //And the DB_VENDOR is set to h2
         assertThat(theVariableNamed("DB_VENDOR").on(theContainerNamed("server-container").on(deployment)), is("h2"));

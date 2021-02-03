@@ -16,7 +16,7 @@
 
 package org.entando.kubernetes.controller.keycloakserver.interprocesstests;
 
-import static org.entando.kubernetes.controller.KubeUtils.snakeCaseOf;
+import static org.entando.kubernetes.controller.spi.common.NameUtils.snakeCaseOf;
 import static org.entando.kubernetes.model.DbmsVendor.ORACLE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -26,6 +26,7 @@ import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegra
 import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
+import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,7 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
                 .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
                 .withNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
                 .endMetadata().withNewSpec()
-                .withImageName("entando/entando-keycloak")
+                .withStandardImage(StandardKeycloakImage.KEYCLOAK)
                 .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(ORACLE)
                 .withDefault(true)
@@ -51,7 +52,7 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
         SampleWriter.writeSample(keycloakServer, "keycloak-with-external-oracle-db");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
         //Then I expect to see
-        verifyKeycloakDeployment(keycloakServer);
+        verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);
         assertThat(
                 client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
                         KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")

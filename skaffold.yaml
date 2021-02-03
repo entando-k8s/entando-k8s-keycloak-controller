@@ -18,6 +18,8 @@ profiles:
     - image: entando/entando-k8s-keycloak-controller
       docker:
         dockerfile: Dockerfile.jvm
+        buildArgs:
+          VERSION: "{{ .VERSION}}"
 - name: native
   build:
     artifacts:
