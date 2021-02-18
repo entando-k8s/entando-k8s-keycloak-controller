@@ -39,7 +39,6 @@ import org.entando.kubernetes.controller.spi.container.TlsAware;
 import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
-import org.entando.kubernetes.controller.support.creators.SecretCreator;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -157,7 +156,6 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         return vars;
     }
 
-
     @Override
     public List<DatabaseSchemaConnectionInfo> getSchemaConnectionInfo() {
         return this.databaseSchemaConnectionInfos;
@@ -167,7 +165,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     public List<EnvVar> getTlsVariables() {
         List<EnvVar> vars = new ArrayList<>();
         String certFiles = EntandoOperatorConfig.getCertificateAuthorityCertPaths().stream()
-                .map(path -> SecretCreator.standardCertPathOf(path.getFileName().toString()))
+                .map(path -> SecretUtils.standardCertPathOf(path.getFileName().toString()))
                 .collect(Collectors.joining(" "));
         vars.add(new EnvVar("X509_CA_BUNDLE",
                 "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "

@@ -70,7 +70,7 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         ConfigMap keycloakConnectionConfigMap = saveConnectionInfoConfigMapInDeploymentNamespace(newEntandoKeycloakServer,
                 serviceDeploymentResult);
         if (newEntandoKeycloakServer.getSpec().isDefault()) {
-            k8sClient.entandoResources().loadDefaultConfigMap()
+            k8sClient.entandoResources().loadDefaultCapabilitiesConfigMap()
                     .addToData(KeycloakName.DEFAULT_KEYCLOAK_NAME_KEY, newEntandoKeycloakServer.getMetadata().getName())
                     .addToData(KeycloakName.DEFAULT_KEYCLOAK_NAMESPACE_KEY, newEntandoKeycloakServer.getMetadata().getNamespace())
                     .done();

@@ -28,15 +28,11 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.concurrent.TimeUnit;
-import org.entando.kubernetes.controller.integrationtest.support.EntandoAppIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig;
-import org.entando.kubernetes.controller.integrationtest.support.EntandoOperatorTestConfig.TestTarget;
-import org.entando.kubernetes.controller.integrationtest.support.EntandoPluginIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.FluentIntegrationTesting;
-import org.entando.kubernetes.controller.integrationtest.support.HttpTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.K8SIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.TestFixturePreparation;
+import org.entando.kubernetes.client.EntandoOperatorTestConfig;
+import org.entando.kubernetes.client.EntandoOperatorTestConfig.TestTarget;
+import org.entando.kubernetes.client.integrationtesthelpers.FluentIntegrationTesting;
+import org.entando.kubernetes.client.integrationtesthelpers.HttpTestHelper;
+import org.entando.kubernetes.client.integrationtesthelpers.TestFixturePreparation;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -47,6 +43,10 @@ import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import org.entando.kubernetes.model.plugin.EntandoPlugin;
+import org.entando.kubernetes.test.e2etest.helpers.EntandoAppE2ETestHelper;
+import org.entando.kubernetes.test.e2etest.helpers.EntandoPluginE2ETestHelper;
+import org.entando.kubernetes.test.e2etest.helpers.K8SIntegrationTestHelper;
+import org.entando.kubernetes.test.e2etest.helpers.KeycloakE2ETestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -63,20 +63,20 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
         client = helper.getClient();
         //Reset all namespaces as they depend on previously created Keycloak clients that are now invalid
         helper.setTextFixture(deleteAll(EntandoKeycloakServer.class)
-                .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
+                .fromNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
                 .deleteAll(EntandoDatabaseService.class)
-                .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
+                .fromNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
                 .deleteAll(EntandoApp.class)
-                .fromNamespace(EntandoAppIntegrationTestHelper.TEST_NAMESPACE)
+                .fromNamespace(EntandoAppE2ETestHelper.TEST_NAMESPACE)
                 .deleteAll(EntandoPlugin.class)
-                .fromNamespace(EntandoPluginIntegrationTestHelper.TEST_PLUGIN_NAMESPACE)
+                .fromNamespace(EntandoPluginE2ETestHelper.TEST_PLUGIN_NAMESPACE)
         );
-        helper.externalDatabases().deletePgTestPod(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE);
+        helper.externalDatabases().deletePgTestPod(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE);
         EntandoKeycloakServerController controller = new EntandoKeycloakServerController(client, false);
         if (EntandoOperatorTestConfig.getTestTarget() == TestTarget.K8S) {
-            helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE);
+            helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE);
         } else {
-            helper.keycloak().listenAndRespondWithStartupEvent(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE, controller::onStartup);
+            helper.keycloak().listenAndRespondWithStartupEvent(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE, controller::onStartup);
         }
     }
 
@@ -90,22 +90,22 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
 
         String http = HttpTestHelper.getDefaultProtocol();
         await().atMost(15, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).ignoreExceptions().until(() -> HttpTestHelper
-                .statusOk(http + "://" + KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix()
+                .statusOk(http + "://" + KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix()
                         + "/auth"));
-        Deployment deployment = client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
-                .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-server-deployment").get();
+        Deployment deployment = client.apps().deployments().inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
+                .withName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "-server-deployment").get();
         assertThat(thePortNamed("server-port")
                         .on(theContainerNamed("server-container").on(deployment))
                         .getContainerPort(),
                 is(8080));
         assertThat(theContainerNamed("server-container").on(deployment).getImage(),
                 containsString(standardKeycloakImage.name().toLowerCase().replace("_", "-")));
-        Service service = client.services().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
-                KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-server-service").get();
+        Service service = client.services().inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(
+                KeycloakE2ETestHelper.KEYCLOAK_NAME + "-server-service").get();
         assertThat(thePortNamed("server-port").on(service).getPort(), is(8080));
         assertTrue(deployment.getStatus().getReadyReplicas() >= 1);
         assertTrue(helper.keycloak().getOperations()
-                .inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
+                .inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
                 .fromServer().get().getStatus().forServerQualifiedBy("server").isPresent());
 
         Secret adminSecret = client.secrets()

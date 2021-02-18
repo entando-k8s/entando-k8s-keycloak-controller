@@ -21,7 +21,7 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>6.3.11</version>
+        <version>6.3.13</version>
         <relativePath/>
     </parent>
     <version>6.3.0-SNAPSHOT</version>
@@ -64,8 +64,7 @@
     <properties>
         <github.organization>entando-k8s</github.organization>
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>6.3.1</entando-k8s-operator-common.version>
-        <entando-k8s-custom-model.version>6.3.0</entando-k8s-custom-model.version>
+        <entando-k8s-operator-common.version>6.3.4</entando-k8s-operator-common.version>
         <skipLicenseDownload>true</skipLicenseDownload>
         <preDeploymentTestGroups>pre-deployment</preDeploymentTestGroups>
         <postDeploymentTestGroups>post-deployment</postDeploymentTestGroups>
@@ -75,11 +74,6 @@
         <url>https://github.com/${github.organization}/${project.artifactId}/issues/</url>
     </issueManagement>
     <dependencies>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>entando-k8s-custom-model</artifactId>
-            <version>${entando-k8s-custom-model.version}</version>
-        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>entando-k8s-operator-common</artifactId>

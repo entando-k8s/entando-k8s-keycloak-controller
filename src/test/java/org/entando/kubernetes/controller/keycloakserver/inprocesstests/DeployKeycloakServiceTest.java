@@ -56,11 +56,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Base64;
 import java.util.Map;
-import org.entando.kubernetes.controller.inprocesstest.InProcessTestUtil;
-import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.LabeledArgumentCaptor;
-import org.entando.kubernetes.controller.inprocesstest.argumentcaptors.NamedArgumentCaptor;
-import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.EntandoResourceClientDouble;
-import org.entando.kubernetes.controller.inprocesstest.k8sclientdouble.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
 import org.entando.kubernetes.controller.keycloakserver.KeycloakDeployable;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
@@ -69,14 +64,19 @@ import org.entando.kubernetes.controller.spi.container.KeycloakName;
 import org.entando.kubernetes.controller.spi.container.TlsAware;
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
+import org.entando.kubernetes.controller.support.client.doubles.EntandoResourceClientDouble;
+import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.support.common.KubeUtils;
+import org.entando.kubernetes.controller.support.common.TlsHelper;
 import org.entando.kubernetes.controller.support.creators.SecretCreator;
-import org.entando.kubernetes.controller.support.creators.TlsHelper;
-import org.entando.kubernetes.controller.test.support.CommonLabels;
-import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
+import org.entando.kubernetes.test.common.CommonLabels;
+import org.entando.kubernetes.test.common.FluentTraversals;
+import org.entando.kubernetes.test.componenttest.InProcessTestUtil;
+import org.entando.kubernetes.test.componenttest.argumentcaptors.LabeledArgumentCaptor;
+import org.entando.kubernetes.test.componenttest.argumentcaptors.NamedArgumentCaptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -207,9 +207,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         assertThat(theKey(NameUtils.URL_KEY).on(localKeycloakConnectionConfig), is("https://access.192.168.0.100.nip.io/auth"));
 
         //And the Operator's default ConfigMap points to the previously created KeycloakServer
-        assertThat(client.entandoResources().loadDefaultConfigMap().getData()
+        assertThat(client.entandoResources().loadDefaultCapabilitiesConfigMap().getData()
                 .get(KeycloakName.DEFAULT_KEYCLOAK_NAME_KEY), is(MY_KEYCLOAK));
-        assertThat(client.entandoResources().loadDefaultConfigMap().getData()
+        assertThat(client.entandoResources().loadDefaultCapabilitiesConfigMap().getData()
                 .get(KeycloakName.DEFAULT_KEYCLOAK_NAMESPACE_KEY), is(MY_KEYCLOAK_NAMESPACE));
 
     }
@@ -547,9 +547,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
         assertThat(theVolumeMountNamed(TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
                         .getMountPath(),
-                is(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+                is(SecretUtils.CERT_SECRET_MOUNT_ROOT + "/" + TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
         assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
-                containsString(SecretCreator.CERT_SECRET_MOUNT_ROOT + "/" + TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
+                containsString(SecretUtils.CERT_SECRET_MOUNT_ROOT + "/" + TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
                         + "/ca.crt"));
 
         assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));

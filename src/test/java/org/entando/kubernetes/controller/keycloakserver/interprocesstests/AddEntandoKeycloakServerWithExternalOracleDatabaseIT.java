@@ -22,11 +22,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
-import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
+import org.entando.kubernetes.test.e2etest.common.SampleWriter;
+import org.entando.kubernetes.test.e2etest.helpers.KeycloakE2ETestHelper;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
@@ -37,15 +37,15 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
     @Test
     void create() {
         helper.externalDatabases()
-                .prepareExternalOracleDatabase(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE,
-                        snakeCaseOf(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db"));
+                .prepareExternalOracleDatabase(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE,
+                        snakeCaseOf(KeycloakE2ETestHelper.KEYCLOAK_NAME + "-db"));
         //When I create a EntandoKeycloakServer and I specify it to use PostgreSQL
         EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder().withNewMetadata()
-                .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
-                .withNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
+                .withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
+                .withNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
                 .endMetadata().withNewSpec()
                 .withStandardImage(StandardKeycloakImage.KEYCLOAK)
-                .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
+                .withIngressHostName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(ORACLE)
                 .withDefault(true)
                 .endSpec().build();
@@ -54,8 +54,8 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
         //Then I expect to see
         verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);
         assertThat(
-                client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
-                        KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
+                client.apps().deployments().inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(
+                        KeycloakE2ETestHelper.KEYCLOAK_NAME + "-db-deployment")
                         .get(), is(nullValue()));
     }
 }
