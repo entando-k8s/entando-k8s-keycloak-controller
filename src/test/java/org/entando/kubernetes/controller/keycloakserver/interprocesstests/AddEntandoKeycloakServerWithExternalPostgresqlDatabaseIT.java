@@ -20,12 +20,12 @@ import static org.entando.kubernetes.model.DbmsVendor.POSTGRESQL;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 
-import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
+import org.entando.kubernetes.test.e2etest.common.SampleWriter;
+import org.entando.kubernetes.test.e2etest.helpers.KeycloakE2ETestHelper;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -37,15 +37,15 @@ class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntand
 
     @Test
     void create() {
-        helper.externalDatabases().prepareExternalPostgresqlDatabase(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE,
+        helper.externalDatabases().prepareExternalPostgresqlDatabase(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE,
                 EntandoKeycloakServer.class.getSimpleName());
         //When I create a EntandoKeycloakServer and I specify it to use PostgreSQL
         EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder().withNewMetadata()
-                .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
-                .withNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
+                .withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
+                .withNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
                 .endMetadata().withNewSpec()
                 .withStandardImage(StandardKeycloakImage.KEYCLOAK)
-                .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
+                .withIngressHostName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(POSTGRESQL)
                 .withDefault(true)
                 .endSpec().build();
@@ -53,13 +53,13 @@ class AddEntandoKeycloakServerWithExternalPostgresqlDatabaseIT extends AddEntand
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
         //Then I expect to see a valid keycloak deployment
         verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);
-        assertThat(client.apps().deployments().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
-                KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
+        assertThat(client.apps().deployments().inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(
+                KeycloakE2ETestHelper.KEYCLOAK_NAME + "-db-deployment")
                 .get(), Matchers.is(nullValue()));
         //And recreating the deployment still succeeds because it regenerates all passwords for database schemas
         //Reset all namespaces as they depend on previously created Keycloak clients that are now invalid
         helper.setTextFixture(deleteAll(EntandoKeycloakServer.class)
-                .fromNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE));
+                .fromNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE));
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_FORCE_DB_PASSWORD_RESET.getJvmSystemProperty(), "true");
         helper.keycloak().createAndWaitForKeycloak(keycloakServer, 0, false);
         verifyKeycloakDeployment(keycloakServer, StandardKeycloakImage.KEYCLOAK);

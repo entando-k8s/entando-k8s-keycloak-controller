@@ -24,15 +24,15 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import org.entando.kubernetes.controller.integrationtest.support.KeycloakIntegrationTestHelper;
-import org.entando.kubernetes.controller.integrationtest.support.SampleWriter;
 import org.entando.kubernetes.controller.spi.common.DbmsDockerVendorStrategy;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
-import org.entando.kubernetes.controller.test.support.FluentTraversals;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
+import org.entando.kubernetes.test.common.FluentTraversals;
+import org.entando.kubernetes.test.e2etest.common.SampleWriter;
+import org.entando.kubernetes.test.e2etest.helpers.KeycloakE2ETestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
@@ -57,11 +57,11 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_IMAGE_PULL_SECRETS.getJvmSystemProperty(), "redhat-registry");
         //When I create a EntandoKeycloakServer and I specify it to use PostgreSQL
         EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder().withNewMetadata()
-                .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
-                .withNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
+                .withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
+                .withNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
                 .endMetadata().withNewSpec()
                 .withStandardImage(StandardKeycloakImage.KEYCLOAK)
-                .withIngressHostName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
+                .withIngressHostName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
                 .withDbms(POSTGRESQL)
                 .withDefault(true)
                 .endSpec().build();
@@ -80,8 +80,8 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
 
     private void verifyKeycloakDatabaseDeployment(EntandoOperatorComplianceMode complianceMode) {
         Deployment deployment = client.apps().deployments()
-                .inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE)
-                .withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-deployment")
+                .inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE)
+                .withName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "-db-deployment")
                 .get();
         assertThat(thePortNamed(DB_PORT).on(theContainerNamed("db-container").on(deployment))
                 .getContainerPort(), equalTo(KEYCLOAK_DB_PORT));
@@ -94,12 +94,12 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
         assertThat(theContainerNamed("db-container").on(deployment).getImage(), containsString(dockerVendorStrategy.getRegistry()));
         assertThat(theContainerNamed("db-container").on(deployment).getImage(), containsString(dockerVendorStrategy.getImageRepository()));
         assertThat(theContainerNamed("db-container").on(deployment).getImage(), containsString(dockerVendorStrategy.getOrganization()));
-        Service service = client.services().inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(
-                KeycloakIntegrationTestHelper.KEYCLOAK_NAME + "-db-service").get();
+        Service service = client.services().inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(
+                KeycloakE2ETestHelper.KEYCLOAK_NAME + "-db-service").get();
         assertThat(thePortNamed(DB_PORT).on(service).getPort(), equalTo(KEYCLOAK_DB_PORT));
         assertThat(deployment.getStatus().getReadyReplicas(), greaterThanOrEqualTo(1));
         assertThat("It has a db status", helper.keycloak().getOperations()
-                .inNamespace(KeycloakIntegrationTestHelper.KEYCLOAK_NAMESPACE).withName(KeycloakIntegrationTestHelper.KEYCLOAK_NAME)
+                .inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
                 .fromServer().get().getStatus().forDbQualifiedBy("db").isPresent());
     }
 }
