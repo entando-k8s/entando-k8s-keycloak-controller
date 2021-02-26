@@ -68,6 +68,11 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
+    public Optional<Integer> getMaximumStartupTimeSeconds() {
+        return Optional.of(180);
+    }
+
+    @Override
     public DockerImageInfo getDockerImageInfo() {
         return new DockerImageInfo(keycloakServer.getSpec().getCustomImage()
                 .orElse(determineStandardImageName()));
