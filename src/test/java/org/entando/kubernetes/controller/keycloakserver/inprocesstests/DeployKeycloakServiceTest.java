@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.argThat;
@@ -47,31 +46,28 @@ import io.fabric8.kubernetes.api.model.extensions.Ingress;
 import io.fabric8.kubernetes.api.model.extensions.IngressStatus;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.util.Base64;
 import java.util.Map;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
 import org.entando.kubernetes.controller.keycloakserver.KeycloakDeployable;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
-import org.entando.kubernetes.controller.spi.container.TlsAware;
+import org.entando.kubernetes.controller.spi.container.TrustStoreAware;
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.support.client.doubles.EntandoResourceClientDouble;
 import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.controller.support.common.KubeUtils;
-import org.entando.kubernetes.controller.support.common.TlsHelper;
-import org.entando.kubernetes.controller.support.creators.SecretCreator;
+import org.entando.kubernetes.controller.support.creators.DeploymentCreator;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
+import org.entando.kubernetes.test.common.CertificateSecretHelper;
 import org.entando.kubernetes.test.common.CommonLabels;
 import org.entando.kubernetes.test.common.FluentTraversals;
 import org.entando.kubernetes.test.componenttest.InProcessTestUtil;
@@ -126,24 +122,18 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
     @AfterEach
     void resetSystemProps() {
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
-        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty());
-        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_PATH_TO_TLS_KEYPAIR.getJvmSystemProperty());
+        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_CA_SECRET_NAME.getJvmSystemProperty());
+        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_TLS_SECRET_NAME.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty());
     }
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void prepare() {
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
-                "src/test/resources/tls/ampie.dynu.net/ca.crt");
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_PATH_TO_TLS_KEYPAIR.getJvmSystemProperty(),
-                "src/test/resources//ampie.dynu.net/");
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_ACTION, Action.ADDED.name());
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAME, keycloakServer.getMetadata().getName());
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAMESPACE, keycloakServer.getMetadata().getNamespace());
-        TlsHelper.getInstance().init();
-        keycloakServerController = new EntandoKeycloakServerController((SimpleK8SClient) client, keycloakClient);
+        keycloakServerController = new EntandoKeycloakServerController(client, keycloakClient);
         client.entandoResources().createOrPatchEntandoResource(keycloakServer);
     }
 
@@ -151,13 +141,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
     void testSecrets() throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         //Given I have an EntandoKeycloakServer custom resource with MySQL as database
         final EntandoKeycloakServer newEntandoKeycloakServer = keycloakServer;
-        //And the trust cert has been configured correctly
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
-                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net", "ca.crt").normalize().toAbsolutePath().toString());
-        //And the default TLS Keypair has been configured correctly
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_PATH_TO_TLS_KEYPAIR.getJvmSystemProperty(),
-                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net").normalize().toAbsolutePath().toString());
-        TlsHelper.getInstance().init();
+        //And the trusted certs and tls certs have been configured correctly
+        CertificateSecretHelper.buildCertificateSecretsFromDirectory(client.entandoResources().getNamespace(),
+                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net")).forEach(client.secrets()::overwriteControllerSecret);
         // WHen I have deploya the EntandoKeycloakServer
         keycloakServerController.onStartup(new StartupEvent());
         verifyDbAdminSecret(newEntandoKeycloakServer);
@@ -165,23 +151,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         verifyKeycloakAdminSecret(newEntandoKeycloakServer);
 
         //And a K8S Secret was created in the Keycloak deployment's namespace containing the CA keystore
-        NamedArgumentCaptor<Secret> tlsSecretCaptor = forResourceNamed(Secret.class, MY_KEYCLOAK + "-tls-secret");
-        verify(client.secrets(), atLeast(1)).createSecretIfAbsent(eq(newEntandoKeycloakServer), tlsSecretCaptor.capture());
-        Secret tlsSecret = tlsSecretCaptor.getValue();
-        assertThat(theKey(TlsHelper.TLS_KEY).on(tlsSecret), is(TlsHelper.getInstance().getTlsKeyBase64()));
-        assertThat(theKey(TlsHelper.TLS_CRT).on(tlsSecret), is(TlsHelper.getInstance().getTlsCertBase64()));
-
-        //And a K8S Secret was created in the Keycloak deployment's namespace containing the CA keystore
         NamedArgumentCaptor<Secret> trustStoreSecretCaptor = forResourceNamed(Secret.class,
-                TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME);
+                CertificateSecretHelper.TEST_CA_SECRET);
         verify(client.secrets(), atLeast(1)).createSecretIfAbsent(eq(newEntandoKeycloakServer), trustStoreSecretCaptor.capture());
-        Secret trustStoreSecret = trustStoreSecretCaptor.getValue();
-        assertThat(theKey(SecretCreator.TRUST_STORE_FILE).on(trustStoreSecret), is(TlsHelper.getInstance().getTrustStoreBase64()));
-
-        byte[] decode = Base64.getDecoder().decode(trustStoreSecret.getData().get(SecretCreator.TRUST_STORE_FILE).getBytes());
-        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-        ks.load(new ByteArrayInputStream(decode), TlsHelper.getInstance().getTrustStorePassword().toCharArray());
-        assertNotNull(ks.getCertificate("ca.crt"));
 
         //And a K8S Secret was created in the controllers' namespace with a name that the fact that it is a Keycloak Admin Secret
         NamedArgumentCaptor<Secret> controllerKeycloakAdminSecretCaptor = forResourceNamed(Secret.class,
@@ -414,10 +386,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //Given we use version 6.0.0 of images by default
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty(), "6.0.0");
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty(), "true");
-        //And the trust cert has been configured correctly
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
-                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net", "ca.crt").normalize().toAbsolutePath().toString());
-        TlsHelper.getInstance().init();
+        //And the trust certs and TLS certs have been configured correctly
+        CertificateSecretHelper.buildCertificateSecretsFromDirectory(client.entandoResources().getNamespace(),
+                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net")).forEach(client.secrets()::overwriteControllerSecret);
         //And K8S is receiving Deployment requests
         DeploymentStatus serverDeploymentStatus = new DeploymentStatus();
         DeploymentStatus dbDeploymentStatus = new DeploymentStatus();
@@ -465,9 +436,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
                 .updateStatus(eq(newEntandoKeycloakServer), argThat(matchesDeploymentStatus(dbDeploymentStatus)));
         verify(client.entandoResources(), atLeastOnce())
                 .updateStatus(eq(newEntandoKeycloakServer), argThat(matchesDeploymentStatus(serverDeploymentStatus)));
-        assertThat(theVolumeNamed(TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(serverDeployment).getSecret()
+        assertThat(theVolumeNamed(CertificateSecretHelper.TEST_CA_SECRET + DeploymentCreator.VOLUME_SUFFIX).on(serverDeployment).getSecret()
                         .getSecretName(),
-                is(TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+                is(CertificateSecretHelper.TEST_CA_SECRET));
         //And all volumes have been mapped
         verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, dbDeployment);
         verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, serverDeployment);
@@ -480,9 +451,8 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty(), "redhat");
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty(), "true");
         //And the trust cert has been configured correctly
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_CA_CERT_PATHS.getJvmSystemProperty(),
-                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net", "ca.crt").normalize().toAbsolutePath().toString());
-        TlsHelper.getInstance().init();
+        CertificateSecretHelper.buildCertificateSecretsFromDirectory(client.entandoResources().getNamespace(),
+                Paths.get("src", "test", "resources", "tls", "ampie.dynu.net")).forEach(client.secrets()::overwriteControllerSecret);
         //And K8S is receiving Deployment requests
         DeploymentStatus serverDeploymentStatus = new DeploymentStatus();
         DeploymentStatus dbDeploymentStatus = new DeploymentStatus();
@@ -529,9 +499,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
                 .updateStatus(eq(newEntandoKeycloakServer), argThat(matchesDeploymentStatus(dbDeploymentStatus)));
         verify(client.entandoResources(), atLeastOnce())
                 .updateStatus(eq(newEntandoKeycloakServer), argThat(matchesDeploymentStatus(serverDeploymentStatus)));
-        assertThat(theVolumeNamed(TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(serverDeployment).getSecret()
+        assertThat(theVolumeNamed(CertificateSecretHelper.TEST_CA_SECRET + DeploymentCreator.VOLUME_SUFFIX).on(serverDeployment).getSecret()
                         .getSecretName(),
-                is(TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+                is(CertificateSecretHelper.TEST_CA_SECRET));
         //And all volumes have been mapped
         verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, dbDeployment);
         verifyThatAllVolumesAreMapped(newEntandoKeycloakServer, client, serverDeployment);
@@ -545,11 +515,11 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         assertThat(theServerContainer.getImage(), containsString(imageName));
         //And that is configured to point to the DB Service
         assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
-        assertThat(theVolumeMountNamed(TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME + "-volume").on(theServerContainer)
+        assertThat(theVolumeMountNamed(CertificateSecretHelper.TEST_CA_SECRET + DeploymentCreator.VOLUME_SUFFIX).on(theServerContainer)
                         .getMountPath(),
-                is(SecretUtils.CERT_SECRET_MOUNT_ROOT + "/" + TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME));
+                is(TrustStoreAware.CERT_SECRET_MOUNT_ROOT + "/" + CertificateSecretHelper.TEST_CA_SECRET));
         assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
-                containsString(SecretUtils.CERT_SECRET_MOUNT_ROOT + "/" + TlsAware.DEFAULT_CERTIFICATE_AUTHORITY_SECRET_NAME
+                containsString(TrustStoreAware.CERT_SECRET_MOUNT_ROOT + "/" + CertificateSecretHelper.TEST_CA_SECRET
                         + "/ca.crt"));
 
         assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));
