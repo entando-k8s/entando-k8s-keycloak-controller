@@ -19,6 +19,8 @@ package org.entando.kubernetes.controller.keycloakserver;
 import static java.lang.String.format;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.Secret;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,16 +37,16 @@ import org.entando.kubernetes.controller.spi.container.DockerImageInfo;
 import org.entando.kubernetes.controller.spi.container.IngressingContainer;
 import org.entando.kubernetes.controller.spi.container.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.container.PersistentVolumeAware;
-import org.entando.kubernetes.controller.spi.container.TlsAware;
+import org.entando.kubernetes.controller.spi.container.SecretToMount;
+import org.entando.kubernetes.controller.spi.container.TrustStoreAware;
 import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
-import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
 import org.entando.kubernetes.model.DbmsVendor;
 import org.entando.kubernetes.model.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
-public class KeycloakDeployableContainer implements IngressingContainer, DbAware, TlsAware, PersistentVolumeAware,
+public class KeycloakDeployableContainer implements IngressingContainer, DbAware, PersistentVolumeAware,
         ParameterizableContainer, ConfigurableResourceContainer {
 
     private static final String COMMUNITY_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
@@ -52,11 +54,14 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     private final EntandoKeycloakServer keycloakServer;
     private final DatabaseServiceResult databaseServiceResult;
+    private final Secret caCertSecret;
     private final List<DatabaseSchemaConnectionInfo> databaseSchemaConnectionInfos;
 
-    public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult) {
+    public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult,
+            Secret caCertSecret) {
         this.keycloakServer = keycloakServer;
         this.databaseServiceResult = databaseServiceResult;
+        this.caCertSecret = caCertSecret;
         databaseSchemaConnectionInfos = Optional.ofNullable(databaseServiceResult)
                 .map(databaseServiceResult1 -> DbAware.buildDatabaseSchemaConnectionInfo(keycloakServer,
                         databaseServiceResult, Collections.singletonList("db")))
@@ -84,6 +89,18 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         } else {
             return COMMUNITY_KEYCLOAK_IMAGE_NAME;
         }
+    }
+
+    @Override
+    public List<SecretToMount> getSecretsToMount() {
+        List<SecretToMount> result = new ArrayList<>();
+        Optional.ofNullable(caCertSecret).ifPresent(
+                s -> result.add(new SecretToMount(s.getMetadata().getName(), caCertsFolder(s))));
+        return result;
+    }
+
+    protected String caCertsFolder(Secret s) {
+        return TrustStoreAware.CERT_SECRET_MOUNT_ROOT + File.separator + s.getMetadata().getName();
     }
 
     private StandardKeycloakImage determineStandardKeycloakImage() {
@@ -124,6 +141,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
                     new EnvVar("KEYCLOAK_PASSWORD", null, SecretUtils.secretKeyRef(secretName(keycloakServer), SecretUtils.PASSSWORD_KEY)));
         }
         vars.add(new EnvVar("PROXY_ADDRESS_FORWARDING", "true", null));
+        Optional.ofNullable(caCertSecret).ifPresent(s -> vars.add(getX509CaBundleVariable(s)));
         return vars;
     }
 
@@ -166,16 +184,16 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         return this.databaseSchemaConnectionInfos;
     }
 
-    @Override
-    public List<EnvVar> getTlsVariables() {
-        List<EnvVar> vars = new ArrayList<>();
-        String certFiles = EntandoOperatorConfig.getCertificateAuthorityCertPaths().stream()
-                .map(path -> SecretUtils.standardCertPathOf(path.getFileName().toString()))
+    public EnvVar getX509CaBundleVariable(Secret caCertSecret) {
+
+        String certFiles = caCertSecret.getData().keySet().stream()
+                .map(fileName -> caCertsFolder(caCertSecret) + File.separator + fileName)
                 .collect(Collectors.joining(" "));
-        vars.add(new EnvVar("X509_CA_BUNDLE",
+        final String certfilelocations =
                 "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
-                        + certFiles, null));
-        return vars;
+                        + certFiles;
+        return new EnvVar("X509_CA_BUNDLE",
+                certfilelocations, null);
     }
 
     private String determineKeycloaksNonStandardDbVendorName(DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo) {

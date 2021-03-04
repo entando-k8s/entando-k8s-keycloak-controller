@@ -48,9 +48,11 @@ public class KeycloakDeployable
 
     public KeycloakDeployable(EntandoKeycloakServer keycloakServer,
             DatabaseServiceResult databaseServiceResult,
-            Secret existingKeycloakAdminSecret) {
+            Secret existingKeycloakAdminSecret,
+            Secret caCertSecret
+    ) {
         this.keycloakServer = keycloakServer;
-        this.containers = Collections.singletonList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult));
+        this.containers = Collections.singletonList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult, caCertSecret));
         this.keycloakAdminSecret = generateSecret(
                 this.keycloakServer,
                 KeycloakDeployableContainer.secretName(this.keycloakServer),

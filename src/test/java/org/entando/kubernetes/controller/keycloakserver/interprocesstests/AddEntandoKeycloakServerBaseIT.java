@@ -37,7 +37,9 @@ import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerCon
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
+import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
+import org.entando.kubernetes.controller.support.common.TlsHelper;
 import org.entando.kubernetes.model.app.EntandoApp;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -55,6 +57,11 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     public static final int KEYCLOAK_DB_PORT = 5432;
     protected K8SIntegrationTestHelper helper = new K8SIntegrationTestHelper();
     protected KubernetesClient client;
+
+    protected AddEntandoKeycloakServerBaseIT() {
+        EntandoOperatorConfig.getCertificateAuthoritySecretName()
+                .ifPresent(s -> TlsHelper.trustCertificateAuthoritiesIn(helper.getClient().secrets().withName(s).get()));
+    }
 
     @BeforeEach
     public void cleanup() {
@@ -87,7 +94,6 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     }
 
     protected void verifyKeycloakDeployment(EntandoKeycloakServer entandoKeycloakServer, StandardKeycloakImage standardKeycloakImage) {
-
         String http = HttpTestHelper.getDefaultProtocol();
         await().atMost(15, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS).ignoreExceptions().until(() -> HttpTestHelper
                 .statusOk(http + "://" + KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix()

@@ -35,6 +35,7 @@ import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.support.command.IngressingDeployCommand;
+import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.support.controller.AbstractDbAwareController;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
@@ -119,7 +120,9 @@ public class EntandoKeycloakServerController extends AbstractDbAwareController<E
         KeycloakDeployable keycloakDeployable = new KeycloakDeployable(
                 newEntandoKeycloakServer,
                 databaseServiceResult,
-                existingKeycloakAdminSecret);
+                existingKeycloakAdminSecret,
+                EntandoOperatorConfig.getCertificateAuthoritySecretName().map(k8sClient.secrets()::loadControllerSecret).orElse(null)
+        );
         IngressingDeployCommand<KeycloakServiceDeploymentResult> keycloakCommand = new IngressingDeployCommand<>(keycloakDeployable);
         return keycloakCommand.execute(k8sClient, keycloakClient).withStatus(keycloakCommand.getStatus());
     }
