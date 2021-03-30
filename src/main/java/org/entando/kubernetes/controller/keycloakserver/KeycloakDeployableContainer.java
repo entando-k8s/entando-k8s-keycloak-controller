@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ConfigurableResourceContainer;
@@ -70,6 +71,11 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     public static String secretName(EntandoKeycloakServer keycloakServer) {
         return keycloakServer.getMetadata().getName() + "-admin-secret";
+    }
+
+    public Optional<String> getStorageClass() {
+        return Optional.ofNullable(this.keycloakServer.getSpec().getStorageClass()
+                .orElse(PersistentVolumeAware.super.getStorageClass().orElse(null)));
     }
 
     @Override
