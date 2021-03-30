@@ -73,6 +73,12 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     @Override
+    public Optional<String> getStorageClass() {
+        return Optional.ofNullable(this.keycloakServer.getSpec().getStorageClass()
+                .orElse(PersistentVolumeAware.super.getStorageClass().orElse(null)));
+    }
+
+    @Override
     public Optional<Integer> getMaximumStartupTimeSeconds() {
         return Optional.of(180);
     }
