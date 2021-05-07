@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.common.TrustStoreHelper;
 import org.entando.kubernetes.controller.spi.container.ConfigurableResourceContainer;
 import org.entando.kubernetes.controller.spi.container.DatabaseSchemaConnectionInfo;
 import org.entando.kubernetes.controller.spi.container.DbAware;
@@ -41,8 +42,8 @@ import org.entando.kubernetes.controller.spi.container.SecretToMount;
 import org.entando.kubernetes.controller.spi.container.TrustStoreAware;
 import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
-import org.entando.kubernetes.model.DbmsVendor;
-import org.entando.kubernetes.model.EntandoResourceRequirements;
+import org.entando.kubernetes.model.common.DbmsVendor;
+import org.entando.kubernetes.model.common.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
@@ -106,7 +107,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     protected String caCertsFolder(Secret s) {
-        return TrustStoreAware.CERT_SECRET_MOUNT_ROOT + File.separator + s.getMetadata().getName();
+        return TrustStoreHelper.CERT_SECRET_MOUNT_ROOT + File.separator + s.getMetadata().getName();
     }
 
     private StandardKeycloakImage determineStandardKeycloakImage() {

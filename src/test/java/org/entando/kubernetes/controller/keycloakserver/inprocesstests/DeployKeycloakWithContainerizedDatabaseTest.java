@@ -31,15 +31,16 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.container.KeycloakClientConfig;
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.support.client.doubles.EntandoResourceClientDouble;
 import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.KubeUtils;
-import org.entando.kubernetes.model.DbmsVendor;
-import org.entando.kubernetes.model.keycloakserver.DoneableEntandoKeycloakServer;
+import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
+import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.test.common.CommonLabels;
 import org.entando.kubernetes.test.common.FluentTraversals;
 import org.entando.kubernetes.test.componenttest.InProcessTestUtil;
@@ -63,9 +64,9 @@ class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, 
 
     static final String MY_KEYCLOAK_SERVER_DEPLOYMENT = MY_KEYCLOAK + "-server-deployment";
     private static final String MY_KEYCLOAK_DB_SECRET = MY_KEYCLOAK + "-db-secret";
-    private final EntandoKeycloakServer keycloakServer = new DoneableEntandoKeycloakServer(newEntandoKeycloakServer(), s -> s)
+    private final EntandoKeycloakServer keycloakServer = new EntandoKeycloakServerBuilder(newEntandoKeycloakServer())
             .editSpec().withDbms(DbmsVendor.NONE).endSpec()
-            .done();
+            .build();
     @Spy
     private final SimpleK8SClient<EntandoResourceClientDouble> client = new SimpleK8SClientDouble();
     @Mock
@@ -77,8 +78,8 @@ class DeployKeycloakWithContainerizedDatabaseTest implements InProcessTestUtil, 
         client.entandoResources().createOrPatchEntandoResource(keycloakServer);
         keycloakServerController = new EntandoKeycloakServerController(client, keycloakClient);
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_ACTION, Action.ADDED.name());
-        System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAME, keycloakServer.getMetadata().getName());
-        System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAMESPACE, keycloakServer.getMetadata().getNamespace());
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_RESOURCE_NAME.getJvmSystemProperty(), keycloakServer.getMetadata().getName());
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_RESOURCE_NAMESPACE.getJvmSystemProperty(), keycloakServer.getMetadata().getNamespace());
 
     }
 

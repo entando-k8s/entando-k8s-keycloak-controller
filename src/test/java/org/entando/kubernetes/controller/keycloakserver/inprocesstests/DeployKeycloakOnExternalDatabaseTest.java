@@ -32,6 +32,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.KeycloakClientConfig;
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
@@ -40,12 +41,13 @@ import org.entando.kubernetes.controller.support.client.doubles.EntandoResourceC
 import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.command.CreateExternalServiceCommand;
 import org.entando.kubernetes.controller.support.common.KubeUtils;
-import org.entando.kubernetes.model.DbmsVendor;
+import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseServiceBuilder;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.test.common.CommonLabels;
+import org.entando.kubernetes.test.common.ExternalDatabaseService;
 import org.entando.kubernetes.test.common.FluentTraversals;
 import org.entando.kubernetes.test.componenttest.InProcessTestUtil;
 import org.entando.kubernetes.test.componenttest.argumentcaptors.LabeledArgumentCaptor;
@@ -85,15 +87,17 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
         client.entandoResources().createOrPatchEntandoResource(keycloakServer);
         keycloakServerController = new EntandoKeycloakServerController(client, keycloakClient);
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_ACTION, Action.ADDED.name());
-        System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAME, keycloakServer.getMetadata().getName());
-        System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAMESPACE, keycloakServer.getMetadata().getNamespace());
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_RESOURCE_NAME.getJvmSystemProperty(),
+                keycloakServer.getMetadata().getName());
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_RESOURCE_NAMESPACE.getJvmSystemProperty(),
+                keycloakServer.getMetadata().getNamespace());
 
     }
 
     @Test
     void testSecrets() {
         //Given I have created an EntandoDatabaseService custom resource
-        new CreateExternalServiceCommand(externalDatabase).execute(client);
+        new CreateExternalServiceCommand(new ExternalDatabaseService(externalDatabase), externalDatabase).execute(client);
         //When I deploy a EntandoKeycloakServer
         keycloakServerController.onStartup(new StartupEvent());
         //Then a K8S Secret was created with a name that reflects the EntandoApp and the fact that it is a secret
@@ -107,7 +111,7 @@ class DeployKeycloakOnExternalDatabaseTest implements InProcessTestUtil, FluentT
     @Test
     void testDeployment() {
         //Given I have created an EntandoDatabaseService custom resource
-        new CreateExternalServiceCommand(externalDatabase).execute(client);
+        new CreateExternalServiceCommand(new ExternalDatabaseService(externalDatabase), externalDatabase).execute(client);
         //And Keycloak is receiving requests
         lenient().when(keycloakClient.prepareClientAndReturnSecret(any(KeycloakClientConfig.class))).thenReturn(KEYCLOAK_SECRET);
         //When I deploy a EntandoKeycloakServer

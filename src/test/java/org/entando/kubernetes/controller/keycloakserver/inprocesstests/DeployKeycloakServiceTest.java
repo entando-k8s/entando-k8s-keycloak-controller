@@ -54,8 +54,10 @@ import java.security.cert.CertificateException;
 import java.util.Map;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
 import org.entando.kubernetes.controller.keycloakserver.KeycloakDeployable;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.common.TrustStoreHelper;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
 import org.entando.kubernetes.controller.spi.container.TrustStoreAware;
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
@@ -122,7 +124,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
     @AfterEach
     void resetSystemProps() {
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
-        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_CA_SECRET_NAME.getJvmSystemProperty());
+        System.getProperties().remove(EntandoOperatorSpiConfigProperty.ENTANDO_CA_SECRET_NAME.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_TLS_SECRET_NAME.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE.getJvmSystemProperty());
@@ -131,8 +133,8 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
     @BeforeEach
     void prepare() {
         System.setProperty(KubeUtils.ENTANDO_RESOURCE_ACTION, Action.ADDED.name());
-        System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAME, keycloakServer.getMetadata().getName());
-        System.setProperty(KubeUtils.ENTANDO_RESOURCE_NAMESPACE, keycloakServer.getMetadata().getNamespace());
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_RESOURCE_NAME.getJvmSystemProperty(), keycloakServer.getMetadata().getName());
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_RESOURCE_NAMESPACE.getJvmSystemProperty(), keycloakServer.getMetadata().getNamespace());
         keycloakServerController = new EntandoKeycloakServerController(client, keycloakClient);
         client.entandoResources().createOrPatchEntandoResource(keycloakServer);
     }
@@ -517,9 +519,9 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         assertThat(theVariableNamed(DB_VENDOR).on(theServerContainer), is("mysql"));
         assertThat(theVolumeMountNamed(CertificateSecretHelper.TEST_CA_SECRET + DeploymentCreator.VOLUME_SUFFIX).on(theServerContainer)
                         .getMountPath(),
-                is(TrustStoreAware.CERT_SECRET_MOUNT_ROOT + "/" + CertificateSecretHelper.TEST_CA_SECRET));
+                is(TrustStoreHelper.CERT_SECRET_MOUNT_ROOT + "/" + CertificateSecretHelper.TEST_CA_SECRET));
         assertThat(theVariableNamed("X509_CA_BUNDLE").on(theServerContainer),
-                containsString(TrustStoreAware.CERT_SECRET_MOUNT_ROOT + "/" + CertificateSecretHelper.TEST_CA_SECRET
+                containsString(TrustStoreHelper.CERT_SECRET_MOUNT_ROOT + "/" + CertificateSecretHelper.TEST_CA_SECRET
                         + "/ca.crt"));
 
         assertThat(theServerContainer.getResources().getLimits().get("memory").getAmount(), is("7"));

@@ -18,7 +18,7 @@ package org.entando.kubernetes.controller.keycloakserver;
 
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
-import org.entando.kubernetes.model.DbmsVendor;
+import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 

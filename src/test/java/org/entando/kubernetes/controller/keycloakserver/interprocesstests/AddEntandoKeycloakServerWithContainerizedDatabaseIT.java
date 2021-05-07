@@ -16,7 +16,6 @@
 
 package org.entando.kubernetes.controller.keycloakserver.interprocesstests;
 
-import static org.entando.kubernetes.model.DbmsVendor.POSTGRESQL;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,6 +26,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import org.entando.kubernetes.controller.spi.common.DbmsDockerVendorStrategy;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
+import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
@@ -62,7 +62,7 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
                 .endMetadata().withNewSpec()
                 .withStandardImage(StandardKeycloakImage.KEYCLOAK)
                 .withIngressHostName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
-                .withDbms(POSTGRESQL)
+                .withDbms(DbmsVendor.POSTGRESQL)
                 .withDefault(true)
                 .endSpec().build();
         SampleWriter.writeSample(keycloakServer, "keycloak-with-embedded-postgresql-db");

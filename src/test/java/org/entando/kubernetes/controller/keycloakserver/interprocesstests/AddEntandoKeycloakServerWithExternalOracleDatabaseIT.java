@@ -17,11 +17,11 @@
 package org.entando.kubernetes.controller.keycloakserver.interprocesstests;
 
 import static org.entando.kubernetes.controller.spi.common.NameUtils.snakeCaseOf;
-import static org.entando.kubernetes.model.DbmsVendor.ORACLE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
+import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
@@ -46,7 +46,7 @@ class AddEntandoKeycloakServerWithExternalOracleDatabaseIT extends AddEntandoKey
                 .endMetadata().withNewSpec()
                 .withStandardImage(StandardKeycloakImage.KEYCLOAK)
                 .withIngressHostName(KeycloakE2ETestHelper.KEYCLOAK_NAME + "." + helper.getDomainSuffix())
-                .withDbms(ORACLE)
+                .withDbms(DbmsVendor.ORACLE)
                 .withDefault(true)
                 .endSpec().build();
         SampleWriter.writeSample(keycloakServer, "keycloak-with-external-oracle-db");

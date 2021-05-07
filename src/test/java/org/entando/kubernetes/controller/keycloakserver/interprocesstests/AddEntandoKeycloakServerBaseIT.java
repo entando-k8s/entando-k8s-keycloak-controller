@@ -28,18 +28,19 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.concurrent.TimeUnit;
-import org.entando.kubernetes.client.EntandoOperatorTestConfig;
-import org.entando.kubernetes.client.EntandoOperatorTestConfig.TestTarget;
-import org.entando.kubernetes.client.integrationtesthelpers.FluentIntegrationTesting;
-import org.entando.kubernetes.client.integrationtesthelpers.HttpTestHelper;
-import org.entando.kubernetes.client.integrationtesthelpers.TestFixturePreparation;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
+import org.entando.kubernetes.controller.spi.common.TrustStoreHelper;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
+import org.entando.kubernetes.controller.support.client.impl.EntandoOperatorTestConfig;
+import org.entando.kubernetes.controller.support.client.impl.EntandoOperatorTestConfig.TestTarget;
+import org.entando.kubernetes.controller.support.client.impl.integrationtesthelpers.FluentIntegrationTesting;
+import org.entando.kubernetes.controller.support.client.impl.integrationtesthelpers.HttpTestHelper;
+import org.entando.kubernetes.controller.support.client.impl.integrationtesthelpers.TestFixturePreparation;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
-import org.entando.kubernetes.controller.support.common.TlsHelper;
 import org.entando.kubernetes.model.app.EntandoApp;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -59,8 +60,8 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
     protected KubernetesClient client;
 
     protected AddEntandoKeycloakServerBaseIT() {
-        EntandoOperatorConfig.getCertificateAuthoritySecretName()
-                .ifPresent(s -> TlsHelper.trustCertificateAuthoritiesIn(helper.getClient().secrets().withName(s).get()));
+        EntandoOperatorSpiConfig.getCertificateAuthoritySecretName()
+                .ifPresent(s -> TrustStoreHelper.trustCertificateAuthoritiesIn(helper.getClient().secrets().withName(s).get()));
     }
 
     @BeforeEach
