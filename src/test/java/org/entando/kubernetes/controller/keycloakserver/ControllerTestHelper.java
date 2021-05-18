@@ -51,6 +51,8 @@ import org.entando.kubernetes.controller.spi.container.ProvidedDatabaseCapabilit
 import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
 import org.entando.kubernetes.controller.support.client.doubles.EntandoResourceClientDouble;
+import org.entando.kubernetes.controller.support.client.doubles.NamespaceDouble;
+import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.client.impl.EntandoOperatorTestConfig;
 import org.entando.kubernetes.controller.support.command.InProcessCommandStream;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
@@ -270,7 +272,14 @@ public interface ControllerTestHelper {
         return entandoResource;
     }
 
-    default void aTlsSecretWasCreatedAndConfiguredAsDefault() {
+    default void attachKubernetesState(SimpleK8SClientDouble client) {
+        final Map<String, NamespaceDouble> kubernetesState = client.getKubernetesState();
+        kubernetesState.forEach((key, value) ->
+                step(key, () -> value.getKubernetesState().forEach((s, hasMetadata) -> step(s,
+                        () -> hasMetadata.forEach(m -> attacheKubernetesResource(m.getMetadata().getName(), m))))));
+    }
+
+    default void theDefaultTlsSecretWasCreatedAndConfiguredAsDefault() {
         step("And a TLS Secret was created and configured as default", () -> {
             attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_TLS_SECRET_NAME, DEFAULT_TLS_SECRET);
             getClient().secrets().overwriteControllerSecret(new SecretBuilder()

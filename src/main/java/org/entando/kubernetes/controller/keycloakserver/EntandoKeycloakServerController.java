@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.capability.CapabilityClient;
@@ -47,6 +46,7 @@ import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.CapabilityRequirementBuilder;
 import org.entando.kubernetes.model.capability.CapabilityScope;
 import org.entando.kubernetes.model.capability.ExternallyProvidedService;
+import org.entando.kubernetes.model.capability.ExternallyProvidedServiceFluent;
 import org.entando.kubernetes.model.capability.ProvidedCapability;
 import org.entando.kubernetes.model.capability.ProvidedCapabilityBuilder;
 import org.entando.kubernetes.model.capability.StandardCapability;
@@ -62,6 +62,7 @@ import picocli.CommandLine;
 @CommandLine.Command()
 public class EntandoKeycloakServerController implements Runnable {
 
+    public static final String SECRET_KIND = "Secret";
     private final Logger logger = Logger.getLogger(EntandoKeycloakServerController.class.getName());
     private final KubernetesClientForControllers k8sClient;
     private final CapabilityProvider capabilityProvider;
@@ -85,25 +86,26 @@ public class EntandoKeycloakServerController implements Runnable {
     public void run() {
         EntandoCustomResource resourceToProcess = k8sClient.resolveCustomResourceToProcess(SUPPORTED_RESOURCE_KINDS);
         k8sClient.updatePhase(resourceToProcess, EntandoDeploymentPhase.STARTED);
-        //No need to update the resource being synced to. It will be ignored by ControllerCoordinator
-        if (resourceToProcess instanceof EntandoKeycloakServer) {
-            //This event originated from the original EntandoDatabaseService, NOT a capability requirement expressed by means of a
-            // ProvidedCapability
-            //The ProvidedCapability is to be owned by the implementing CustomResource and will therefore be ignored by
-            // ControllerCoordinator
-            this.entandoKeycloakServer = (EntandoKeycloakServer) resourceToProcess;
-            this.providedCapability = syncFromImplementingResourceToCapability(this.entandoKeycloakServer);
-            this.k8sClient.createOrPatchEntandoResource(this.providedCapability);
-        } else {
-            //This event originated from the capability requirement, and we need to keep the implementing CustomResource in sync
-            //The implementing CustomResource is to be owned by the ProvidedCapability and will therefore be ignored by
-            // ControllerCoordinator
-            this.providedCapability = (ProvidedCapability) resourceToProcess;
-            this.entandoKeycloakServer = syncFromCapabilityToImplementingCustomResource(this.providedCapability);
-            this.k8sClient.createOrPatchEntandoResource(this.entandoKeycloakServer);
-        }
         try {
-            validateExternalServiceRequirements();
+            //No need to update the resource being synced to. It will be ignored by ControllerCoordinator
+            if (resourceToProcess instanceof EntandoKeycloakServer) {
+                //This event originated from the original EntandoDatabaseService, NOT a capability requirement expressed by means of a
+                // ProvidedCapability
+                //The ProvidedCapability is to be owned by the implementing CustomResource and will therefore be ignored by
+                // ControllerCoordinator
+                this.entandoKeycloakServer = (EntandoKeycloakServer) resourceToProcess;
+                this.providedCapability = syncFromImplementingResourceToCapability(this.entandoKeycloakServer);
+                this.k8sClient.createOrPatchEntandoResource(this.providedCapability);
+                validateExternalServiceRequirements(entandoKeycloakServer);
+            } else {
+                //This event originated from the capability requirement, and we need to keep the implementing CustomResource in sync
+                //The implementing CustomResource is to be owned by the ProvidedCapability and will therefore be ignored by
+                // ControllerCoordinator
+                this.providedCapability = (ProvidedCapability) resourceToProcess;
+                this.entandoKeycloakServer = syncFromCapabilityToImplementingCustomResource(this.providedCapability);
+                this.k8sClient.createOrPatchEntandoResource(this.entandoKeycloakServer);
+                validateExternalServiceRequirements(this.providedCapability);
+            }
             KeycloakDeployable deployable = new KeycloakDeployable(entandoKeycloakServer,
                     prepareKeycloakDatabaseService(entandoKeycloakServer), resolveCaSecret());
             KeycloakDeploymentResult result = serializingDeployCommand.processDeployable(deployable);
@@ -111,24 +113,19 @@ public class EntandoKeycloakServerController implements Runnable {
             k8sClient.updateStatus(providedCapability, result.getStatus());
             if (entandoKeycloakServer.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
                     != CapabilityProvisioningStrategy.USE_EXTERNAL) {
-
                 ensureHttpAccess(result);
             }
             ensureKeycloakRealm(new ProvidedKeycloakCapability(capabilityProvider.loadProvisioningResult(providedCapability)));
             k8sClient.updatePhase(entandoKeycloakServer, EntandoDeploymentPhase.SUCCESSFUL);
             k8sClient.updatePhase(providedCapability, EntandoDeploymentPhase.SUCCESSFUL);
         } catch (Exception e) {
-            logger.log(Level.SEVERE, e, () -> format("Unexpected exception occurred while adding %s %s/%s",
-                    entandoKeycloakServer.getKind(),
-                    entandoKeycloakServer.getMetadata().getNamespace(),
-                    entandoKeycloakServer.getMetadata().getName()));
             k8sClient.deploymentFailed(entandoKeycloakServer, e);
             k8sClient.deploymentFailed(providedCapability, e);
-            throw new CommandLine.ExecutionException(new CommandLine(this), e.getMessage());
+            throw new CommandLine.ExecutionException(new CommandLine(this), e.getMessage(), e);
         }
     }
 
-    private void validateExternalServiceRequirements() {
+    private void validateExternalServiceRequirements(ProvidedCapability providedCapability) {
         if (providedCapability.getSpec().getProvisioningStrategy().map(CapabilityProvisioningStrategy.USE_EXTERNAL::equals)
                 .orElse(false)) {
             final ExternallyProvidedService externallyProvidedService = providedCapability.getSpec().getExternallyProvisionedService()
@@ -140,13 +137,39 @@ public class EntandoKeycloakServerController implements Runnable {
                             "Please provide the name of the secret containing the admin credentials server you intend to connect to "
                                     + "using the "
                                     + "ProvidedCapability.spec.externallyProvisionedService.adminSecretName property."));
-            ofNullable(k8sClient.loadStandardResource("Secret", entandoKeycloakServer.getMetadata().getNamespace(), adminSecretName))
-                    .orElseThrow(() -> new EntandoControllerException(format(
-                            "Please ensure that a secret with the name '%s' exists in the requested namespace %s", adminSecretName,
-                            entandoKeycloakServer.getMetadata().getName())));
-            ofNullable(externallyProvidedService.getHost()).orElseThrow(() -> new EntandoControllerException(
-                    "Please provide the hostname of the SSO service you intend to connect to using the "
-                            + "ProvidedCapability.spec.externallyProvisionedService.host property."));
+            if (ofNullable(k8sClient.loadStandardResource(SECRET_KIND, providedCapability.getMetadata().getNamespace(), adminSecretName))
+                    .isEmpty()) {
+                throw new EntandoControllerException(format(
+                        "Please ensure that a secret with the name '%s' exists in the requested namespace %s", adminSecretName,
+                        providedCapability.getMetadata().getName()));
+            }
+            if (ofNullable(externallyProvidedService.getHost()).isEmpty()) {
+                throw new EntandoControllerException(
+                        "Please provide the hostname of the SSO service you intend to connect to using the "
+                                + "ProvidedCapability.spec.externallyProvisionedService.host property.");
+            }
+        }
+    }
+
+    private void validateExternalServiceRequirements(EntandoKeycloakServer entandoKeycloakServer) {
+        if (entandoKeycloakServer.getSpec().getProvisioningStrategy().map(CapabilityProvisioningStrategy.USE_EXTERNAL::equals)
+                .orElse(false)) {
+            if (entandoKeycloakServer.getSpec().getFrontEndUrl().isEmpty()) {
+                throw new EntandoControllerException(
+                        "Please provide the base URL of the SSO server you intend to connect to using the "
+                                + "EntandoKeycloakServer.spec.frontEndUrl property.");
+            }
+            String adminSecretName = entandoKeycloakServer.getSpec().getAdminSecretName()
+                    .orElseThrow(() -> new EntandoControllerException(
+                            "Please provide the name of the secret containing the admin credentials server you intend to connect to "
+                                    + "using the "
+                                    + "EntandoKeycloakServer.spec.adminSecretName property."));
+            if (ofNullable(k8sClient.loadStandardResource(SECRET_KIND, entandoKeycloakServer.getMetadata().getNamespace(), adminSecretName))
+                    .isEmpty()) {
+                throw new EntandoControllerException(format(
+                        "Please ensure that a secret with the name '%s' exists in the requested namespace %s", adminSecretName,
+                        entandoKeycloakServer.getMetadata().getName()));
+            }
         }
     }
 
@@ -187,6 +210,12 @@ public class EntandoKeycloakServerController implements Runnable {
     }
 
     private ProvidedCapability syncFromImplementingResourceToCapability(EntandoKeycloakServer resourceToProcess) {
+        ExternallyProvidedService externalService = resourceToProcess.getSpec().getFrontEndUrl()
+                .map(ExternalKeycloakService::new)
+                .map(s -> new ExternallyProvidedServiceFluent<>().withPort(s.getPort()).withHost(s.getHost())
+                        .withPath(s.getPath())
+                        .withAdminSecretName(resourceToProcess.getSpec().getAdminSecretName().orElse(null))
+                        .build()).orElse(null);
         ProvidedCapabilityBuilder builder = new ProvidedCapabilityBuilder().withNewMetadata()
                 .withNamespace(resourceToProcess.getMetadata().getNamespace())
                 .withName(resourceToProcess.getMetadata().getName()).endMetadata()
@@ -198,7 +227,9 @@ public class EntandoKeycloakServerController implements Runnable {
                         resourceToProcess.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY))
                 .withCapabilityRequirementScope(
                         resourceToProcess.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE)
-
+                .withExternallyProvidedService(externalService)
+                .withPreferredHostName(resourceToProcess.getSpec().getIngressHostName().orElse(null))
+                .withPreferredTlsSecretName(resourceToProcess.getSpec().getTlsSecretName().orElse(null))
                 .endSpec();
 
         final ProvidedCapability capabilityToSyncTo = builder.build();
@@ -216,7 +247,7 @@ public class EntandoKeycloakServerController implements Runnable {
 
     private Secret resolveCaSecret() {
         return EntandoOperatorSpiConfig.getCertificateAuthoritySecretName()
-                .map(n -> (Secret) k8sClient.loadStandardResource("Secret", k8sClient.getNamespace(), n)).orElse(null);
+                .map(n -> (Secret) k8sClient.loadStandardResource(SECRET_KIND, k8sClient.getNamespace(), n)).orElse(null);
     }
 
     private void ensureHttpAccess(KeycloakDeploymentResult serviceDeploymentResult) {

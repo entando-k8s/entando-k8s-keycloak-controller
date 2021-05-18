@@ -30,20 +30,23 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
+import io.qameta.allure.Allure;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Link;
-import io.qameta.allure.Story;
 import java.util.Collections;
 import java.util.Map;
+import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
+import org.entando.kubernetes.controller.spi.command.SerializationHelper;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
-import org.entando.kubernetes.controller.support.client.doubles.NamespaceDouble;
+import org.entando.kubernetes.controller.spi.container.KeycloakConnectionConfig;
+import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
 import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
@@ -65,13 +68,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @Tags({@Tag("component"), @Tag("in-process"), @Tag("allure")})
 @Feature("As a controller developer, I would like request an SSO Capability that be deployed on demand so that I don't need to concern "
         + "myself with the details o deploying an SSO server")
-@Issue( "ENG-2284")
-@Link(name = "Documentation", url = "https://dev.entando.org/v6.3/tutorials/devops/build-core-image"
-        + ".html#building-a-docker-image-for-the-entando-core")
+@Issue("ENG-2284")
+@SourceLink("DirectlyDeployedKeycloakCapabilityTest.java")
+@SuppressWarnings({"java:S5961"})//because this test is intended to generate documentation and should read like the generated document
 class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
 
     @Test
-    @Story("Story1")
     @Description("Should deploy Red Hat SSO with all the default values in a Red Hat compliant environment")
     void shouldDeployRedHatSsoWithDefaultValues() {
         step("Given that the Entando Operator is running in 'Red Hat' compliance mode",
@@ -81,7 +83,7 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_REQUIRES_FILESYSTEM_GROUP_OVERRIDE, "true"));
         step("And the routing suffix has been configured globally ",
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
-        aTlsSecretWasCreatedAndConfiguredAsDefault();
+        theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("And there is a controller to process requests for the DBMS capability",
                 () -> when(client.capabilities().createAndWatchResource(argThat(matchesCapability(StandardCapability.DBMS)), any()))
                         .thenAnswer(withADatabaseCapabiltyStatus(DbmsVendor.POSTGRESQL, "my_db")));
@@ -97,12 +99,12 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 .load(EntandoKeycloakServer.class, MY_NAMESPACE, DEFAULT_SSO_IN_NAMESPACE);
         step("Then an EntandoKeycloakServer was provisioned:", () -> {
             step("using the DeployDirectly provisioningStrategy",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).get().isEqualTo(
+                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).contains(
                             CapabilityProvisioningStrategy.DEPLOY_DIRECTLY));
             step("a PostgreSQL database",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).get().isEqualTo(DbmsVendor.POSTGRESQL));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).contains(DbmsVendor.POSTGRESQL));
             step("and the official Red Hat SSO Image",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).get().isEqualTo(StandardKeycloakImage.REDHAT_SSO));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).contains(StandardKeycloakImage.REDHAT_SSO));
             step("and it is owned by the ProvidedCapability to ensure only changes from the ProvidedCapability will change the "
                             + "implementing Kubernetes resources",
                     () -> assertThat(ResourceUtils.customResourceOwns(providedCapability, entandoKeycloakServer)));
@@ -155,9 +157,7 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                     });
         });
 
-        step("And a Kubernetes Deployment was created reflecting the requirements of the Red Hat SSO container:", () ->
-
-        {
+        step("And a Kubernetes Deployment was created reflecting the requirements of the Red Hat SSO container:", () -> {
             final Deployment deployment = client.deployments()
                     .loadDeployment(entandoKeycloakServer, NameUtils.standardDeployment(entandoKeycloakServer));
             step("using the Red Hat SSO Image",
@@ -165,41 +165,38 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
             step("With a volume mounted to the standard directory /opt/eap/standalone/data",
                     () -> assertThat(theVolumeMountNamed("default-sso-in-namespace-server-volume").on(thePrimaryContainerOn(deployment))
                             .getMountPath()).isEqualTo("/opt/eap/standalone/data"));
-            step("Which is bound to a PersistentVolumeClain",
-                    () -> {
-                        final PersistentVolumeClaim pvc = client.persistentVolumeClaims()
-                                .loadPersistentVolumeClaim(entandoKeycloakServer, "default-sso-in-namespace-server-pvc");
-                        attacheKubernetesResource("PersistentVolumeClaim", pvc);
-                        assertThat(theVolumeNamed("default-sso-in-namespace-server-volume").on(deployment).getPersistentVolumeClaim()
-                                .getClaimName()).isEqualTo(
-                                "default-sso-in-namespace-server-pvc");
-                    });
+            step("Which is bound to a PersistentVolumeClain", () -> {
+                final PersistentVolumeClaim pvc = client.persistentVolumeClaims()
+                        .loadPersistentVolumeClaim(entandoKeycloakServer, "default-sso-in-namespace-server-pvc");
+                attacheKubernetesResource("PersistentVolumeClaim", pvc);
+                assertThat(theVolumeNamed("default-sso-in-namespace-server-volume").on(deployment).getPersistentVolumeClaim()
+                        .getClaimName()).isEqualTo(
+                        "default-sso-in-namespace-server-pvc");
+            });
             step("And the File System User/Group override " + KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID
                     + "has been applied to the mount", () ->
                     assertThat(deployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup())
                             .isEqualTo(KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID));
-            step("And has admin credentials resolved from a dynamically provisioned admin secret ",
-                    () -> {
-                        final Secret secret = client.secrets()
-                                .loadSecret(entandoKeycloakServer, NameUtils.standardAdminSecretName(entandoKeycloakServer));
-                        attacheKubernetesResource("Admin Secret", secret);
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
-                                .getKey())
-                                .isEqualTo(SecretUtils.PASSSWORD_KEY);
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
-                                .getName())
-                                .isEqualTo(secret.getMetadata().getName());
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
-                                .getKey())
-                                .isEqualTo(SecretUtils.USERNAME_KEY);
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
-                                .getName())
-                                .isEqualTo(secret.getMetadata().getName());
-                    });
+            step("And has admin credentials resolved from a dynamically provisioned admin secret ", () -> {
+                final Secret secret = client.secrets()
+                        .loadSecret(entandoKeycloakServer, NameUtils.standardAdminSecretName(entandoKeycloakServer));
+                attacheKubernetesResource("Admin Secret", secret);
+                assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        .getKey())
+                        .isEqualTo(SecretUtils.PASSSWORD_KEY);
+                assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        .getName())
+                        .isEqualTo(secret.getMetadata().getName());
+                assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        .getKey())
+                        .isEqualTo(SecretUtils.USERNAME_KEY);
+                assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        .getName())
+                        .isEqualTo(secret.getMetadata().getName());
+            });
             step("and the credentials for the  schema user provided in a newly generated secret for the Red Hat SSO deployment: "
                             + "'default-sso-in-namespace-db-secret'",
                     () -> {
-
                         attacheKubernetesResource("Schema User Secret",
                                 getClient().secrets().loadSecret(providedCapability, "default-sso-in-namespace-db-secret"));
                         assertThat(
@@ -242,9 +239,7 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                     });
         });
 
-        step("And a Kubernetes Ingress was created:", () ->
-
-        {
+        step("And a Kubernetes Ingress was created:", () -> {
             final Ingress ingress = client.ingresses()
                     .loadIngress(entandoKeycloakServer.getMetadata().getNamespace(), NameUtils.standardIngressName(entandoKeycloakServer));
             attacheKubernetesResource("Ingress", ingress);
@@ -261,31 +256,26 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
             });
         });
 
-        step("And the default TLS secret was cloned into the Capability's deployment namespace", () ->
-
-        {
+        step("And the default TLS secret was cloned into the Capability's deployment namespace", () -> {
             final Secret secret = client.secrets().loadSecret(providedCapability, DEFAULT_TLS_SECRET);
             assertThat(secret.getType()).isEqualTo("kubernetes.io/tls");
             attacheKubernetesResource("Default TLS Secret", secret);
-
         });
-        final Map<String, NamespaceDouble> kubernetesState = ((SimpleK8SClientDouble) client).getKubernetesState();
-        kubernetesState.forEach((key, value) ->
-
-                step(key, () -> value.getKubernetesState().
-
-                        forEach((s, hasMetadata) ->
-
-                                step(s,
-                                        () -> hasMetadata.forEach(m ->
-
-                                                attacheKubernetesResource(m.getMetadata().
-
-                                                        getName(), m))))));
+        step("And the resulting KeycloakConnectionConfig reflects the correct information to connect to the deployed SSO service", () -> {
+            final CapabilityProvider capabilityProvider = new CapabilityProvider(getClient().capabilities());
+            KeycloakConnectionConfig connectionConfig = new ProvidedKeycloakCapability(
+                    capabilityProvider.loadProvisioningResult(providedCapability));
+            Allure.attachment("KeycloakConnectionConfig", SerializationHelper.serialize(connectionConfig));
+            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://default-sso-in-namespace-my-namespace.entando.org/auth");
+            assertThat(connectionConfig.getInternalBaseUrl())
+                    .contains("http://default-sso-in-namespace-service.my-namespace.svc.cluster.local:8080/auth");
+            assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
+            assertThat(connectionConfig.getPassword()).isNotBlank();
+        });
+        attachKubernetesState((SimpleK8SClientDouble) client);
     }
 
     @Test
-    @Story("Story2")
     @Description("Should deploy Keycloak Community Edition with all the default values in a community compliant environment")
     void shouldDeployKeycloakCommunityEditionWithDefaultValues() {
         step("Given that the Entando Operator is running in 'Community' compliance mode",
@@ -297,7 +287,7 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
         step("And the routing suffix has been configured globally ",
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
-        aTlsSecretWasCreatedAndConfiguredAsDefault();
+        theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("When I request an SSO Capability with no additional parameters",
                 () -> runControllerAgainst(newResourceRequiringCapability(), new CapabilityRequirementBuilder()
                         .withCapability(StandardCapability.SSO)
@@ -309,12 +299,12 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 .load(EntandoKeycloakServer.class, MY_NAMESPACE, DEFAULT_SSO_IN_NAMESPACE);
         step("Then an EntandoKeycloakServer was provisioned:", () -> {
             step("using the DeployDirectly provisioningStrategy",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).get().isEqualTo(
+                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).contains(
                             CapabilityProvisioningStrategy.DEPLOY_DIRECTLY));
             step("an embedded database",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).get().isEqualTo(DbmsVendor.EMBEDDED));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).contains(DbmsVendor.EMBEDDED));
             step("and the standard Keycloak Community Image",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).get().isEqualTo(StandardKeycloakImage.KEYCLOAK));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).contains(StandardKeycloakImage.KEYCLOAK));
             step("and it is owned by the ProvidedCapability to ensure only changes from the ProvidedCapability will change the "
                             + "implementing Kubernetes resources",
                     () -> assertThat(ResourceUtils.customResourceOwns(providedCapability, entandoKeycloakServer)));
@@ -397,14 +387,21 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
             attacheKubernetesResource("Default TLS Secret", secret);
 
         });
-        final Map<String, NamespaceDouble> kubernetesState = ((SimpleK8SClientDouble) client).getKubernetesState();
-        kubernetesState.forEach((key, value) ->
-                step(key, () -> value.getKubernetesState().forEach((s, hasMetadata) -> step(s,
-                        () -> hasMetadata.forEach(m -> attacheKubernetesResource(m.getMetadata().getName(), m))))));
+        step("And the resulting KeycloakConnectionConfig reflects the correct information to connect to the deployed SSO service", () -> {
+            final CapabilityProvider capabilityProvider = new CapabilityProvider(getClient().capabilities());
+            KeycloakConnectionConfig connectionConfig = new ProvidedKeycloakCapability(
+                    capabilityProvider.loadProvisioningResult(providedCapability));
+            Allure.attachment("KeycloakConnectionConfig", SerializationHelper.serialize(connectionConfig));
+            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://default-sso-in-namespace-my-namespace.entando.org/auth");
+            assertThat(connectionConfig.getInternalBaseUrl())
+                    .contains("http://default-sso-in-namespace-service.my-namespace.svc.cluster.local:8080/auth");
+            assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
+            assertThat(connectionConfig.getPassword()).isNotBlank();
+        });
+        attachKubernetesState((SimpleK8SClientDouble) getClient());
     }
 
     @Test
-    @Story("Story3")
     @Description("Should deploy Keycloak Community Edition using all the configuration options specified in the capability")
     void shouldDeployKeycloakCommunityEditionWithCustomConfigValues() {
         step("Given I have a specific TLS Secret I want to use:", () -> {
@@ -426,7 +423,7 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 () -> when(client.capabilities().createAndWatchResource(argThat(matchesCapability(StandardCapability.DBMS)), any()))
                         .thenAnswer(withADatabaseCapabiltyStatus(DbmsVendor.MYSQL, "my_db")));
 
-        aTlsSecretWasCreatedAndConfiguredAsDefault();
+        theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("When I request a dedicated SSO Capability with the preferred hostname, TLS secret and DBMS specified",
                 () -> runControllerAgainst(newResourceRequiringCapability(), new CapabilityRequirementBuilder()
                         .withCapability(StandardCapability.SSO)
@@ -443,16 +440,16 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 .load(EntandoKeycloakServer.class, MY_NAMESPACE, MY_APP + "-sso");
         step("Then an EntandoKeycloakServer was provisioned:", () -> {
             step("using the DeployDirectly provisioningStrategy",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).get().isEqualTo(
+                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).contains(
                             CapabilityProvisioningStrategy.DEPLOY_DIRECTLY));
             step("a MySQL database",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).get().isEqualTo(DbmsVendor.MYSQL));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).contains(DbmsVendor.MYSQL));
             step("and the standard Keycloak Community Image",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).get().isEqualTo(StandardKeycloakImage.KEYCLOAK));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).contains(StandardKeycloakImage.KEYCLOAK));
             step("and the TLS secret previously specified",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getTlsSecretName().get()).isEqualTo("my-tls-secret"));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getTlsSecretName()).contains("my-tls-secret"));
             step("and the hostname previously specified",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getIngressHostName().get()).isEqualTo("myhost.com"));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getIngressHostName()).contains("myhost.com"));
             attacheKubernetesResource("EntandoKeycloakServer", entandoKeycloakServer);
         });
         step("And a Kubernetes Ingress was created:", () -> {
@@ -471,10 +468,18 @@ class DirectlyDeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 assertThat(ingress.getSpec().getTls().get(0).getSecretName()).isEqualTo("my-tls-secret");
             });
         });
-        final Map<String, NamespaceDouble> kubernetesState = ((SimpleK8SClientDouble) client).getKubernetesState();
-        kubernetesState.forEach((key, value) ->
-                step(key, () -> value.getKubernetesState().forEach((s, hasMetadata) -> step(s,
-                        () -> hasMetadata.forEach(m -> attacheKubernetesResource(m.getMetadata().getName(), m))))));
+        step("And the resulting KeycloakConnectionConfig reflects the correct information to connect to the deployed SSO service", () -> {
+            final CapabilityProvider capabilityProvider = new CapabilityProvider(getClient().capabilities());
+            KeycloakConnectionConfig connectionConfig = new ProvidedKeycloakCapability(
+                    capabilityProvider.loadProvisioningResult(providedCapability));
+            Allure.attachment("KeycloakConnectionConfig", SerializationHelper.serialize(connectionConfig));
+            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://myhost.com/auth");
+            assertThat(connectionConfig.getInternalBaseUrl())
+                    .contains("http://my-app-sso-service.my-namespace.svc.cluster.local:8080/auth");
+            assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
+            assertThat(connectionConfig.getPassword()).isNotBlank();
+        });
+        attachKubernetesState((SimpleK8SClientDouble) client);
     }
 
 }

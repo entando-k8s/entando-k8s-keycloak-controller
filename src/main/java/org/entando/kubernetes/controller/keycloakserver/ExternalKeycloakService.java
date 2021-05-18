@@ -16,30 +16,47 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import org.entando.kubernetes.controller.spi.deployable.ExternalService;
 
 public class ExternalKeycloakService implements ExternalService {
 
-    private final URL frontEndUrl;
+    private Integer port;
+    private final String host;
+    private final String path;
 
-    public ExternalKeycloakService(URL frontEndUrl) {
-        this.frontEndUrl = frontEndUrl;
+    public ExternalKeycloakService(String frontEndUrl) {
+        try {
+            final URL url = new URL(frontEndUrl);
+            this.port = url.getPort();
+            if (port == -1) {
+                port = url.getDefaultPort();
+            }
+            this.host = url.getHost();
+            this.path = url.getPath();
+        } catch (MalformedURLException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
     public String getHost() {
-        return frontEndUrl.getHost();
+        return host;
     }
 
     @Override
     public int getPort() {
-        return frontEndUrl.getPort();
+        return port;
     }
 
     @Override
     public boolean getCreateDelegateService() {
         //A delegate service will be a problem for KC 9 out 10 times due to HTTPS and hostname based token validation
         return false;
+    }
+
+    public String getPath() {
+        return path;
     }
 }

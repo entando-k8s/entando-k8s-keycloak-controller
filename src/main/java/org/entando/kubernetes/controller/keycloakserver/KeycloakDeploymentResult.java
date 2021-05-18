@@ -19,7 +19,6 @@ package org.entando.kubernetes.controller.keycloakserver;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
-import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
 import org.entando.kubernetes.controller.spi.result.ExposedDeploymentResult;
 import org.entando.kubernetes.model.common.AbstractServerStatus;
 import org.entando.kubernetes.model.common.ExposedServerStatus;
@@ -27,13 +26,12 @@ import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 
 public class KeycloakDeploymentResult extends ExposedDeploymentResult<KeycloakDeploymentResult> {
 
-    private final String adminSecretName;
     private final EntandoKeycloakServer entandoKeycloakServer;
 
     public KeycloakDeploymentResult(Pod pod, Service service, Ingress ingress, String adminSecretName,
             EntandoKeycloakServer entandoKeycloakServer) {
         super(pod, service, ingress);
-        this.adminSecretName = adminSecretName;
+        super.adminSecretName = adminSecretName;
         this.entandoKeycloakServer = entandoKeycloakServer;
     }
 
@@ -41,13 +39,8 @@ public class KeycloakDeploymentResult extends ExposedDeploymentResult<KeycloakDe
     public KeycloakDeploymentResult withStatus(AbstractServerStatus status) {
         final ExposedServerStatus exposedServerStatus = (ExposedServerStatus) status;
         exposedServerStatus.setAdminSecretName(adminSecretName);
-        if(entandoKeycloakServer.getSpec().getFrontEndUrl().isPresent()){
-            exposedServerStatus.setExternalBaseUrl(entandoKeycloakServer.getSpec().getFrontEndUrl().get());
-        }else{
-
-            exposedServerStatus.setExternalBaseUrl(getExternalBaseUrl());
-        }
-//        exposedServerStatus.putDerivedDeploymentParameter(ProvidedKeycloakCapability.DEFAULT_REALM_PARAMETER, entandoKeycloakServer.getSpec().getDefaultRealm());
+        //orElseGet avoids a NPE
+        exposedServerStatus.setExternalBaseUrl(entandoKeycloakServer.getSpec().getFrontEndUrl().orElseGet(this::getExternalBaseUrl));
         return super.withStatus(status);
     }
 }

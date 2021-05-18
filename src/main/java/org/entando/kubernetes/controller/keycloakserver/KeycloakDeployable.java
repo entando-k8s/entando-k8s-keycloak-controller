@@ -24,8 +24,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -66,12 +64,8 @@ public class KeycloakDeployable
     public Optional<ExternalService> getExternalService() {
         if (keycloakServer.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
                 == CapabilityProvisioningStrategy.USE_EXTERNAL) {
-            try {
-                final URL frontEndUrl = new URL(keycloakServer.getSpec().getFrontEndUrl().orElseThrow(IllegalStateException::new));
-                return Optional.of(new ExternalKeycloakService(frontEndUrl));
-            } catch (MalformedURLException e) {
-                throw new IllegalStateException(e);
-            }
+            final String frontEndUrl = keycloakServer.getSpec().getFrontEndUrl().orElseThrow(IllegalStateException::new);
+            return Optional.of(new ExternalKeycloakService(frontEndUrl));
         }
         return IngressingDeployableBase.super.getExternalService();
     }

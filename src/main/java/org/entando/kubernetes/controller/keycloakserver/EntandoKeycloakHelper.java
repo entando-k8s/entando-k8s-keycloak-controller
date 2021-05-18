@@ -57,6 +57,7 @@ public class EntandoKeycloakHelper {
         }
         return dbmsVendor;
     }
+
     public static String deriveFrontEndUrl(ProvidedCapability providedCapability) {
         ExternallyProvidedService s = providedCapability.getSpec().getExternallyProvisionedService()
                 .orElseThrow(IllegalArgumentException::new);
