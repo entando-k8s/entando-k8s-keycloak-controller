@@ -16,14 +16,30 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.extensions.Ingress;
-import org.entando.kubernetes.controller.spi.result.ExposedDeploymentResult;
+import java.net.URL;
+import org.entando.kubernetes.controller.spi.deployable.ExternalService;
 
-public class KeycloakServiceDeploymentResult extends ExposedDeploymentResult<KeycloakServiceDeploymentResult> {
+public class ExternalKeycloakService implements ExternalService {
 
-    public KeycloakServiceDeploymentResult(Pod pod, Service service, Ingress ingress) {
-        super(pod, service, ingress);
+    private final URL frontEndUrl;
+
+    public ExternalKeycloakService(URL frontEndUrl) {
+        this.frontEndUrl = frontEndUrl;
+    }
+
+    @Override
+    public String getHost() {
+        return frontEndUrl.getHost();
+    }
+
+    @Override
+    public int getPort() {
+        return frontEndUrl.getPort();
+    }
+
+    @Override
+    public boolean getCreateDelegateService() {
+        //A delegate service will be a problem for KC 9 out 10 times due to HTTPS and hostname based token validation
+        return false;
     }
 }

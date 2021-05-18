@@ -39,7 +39,6 @@ import org.entando.kubernetes.controller.spi.container.IngressingContainer;
 import org.entando.kubernetes.controller.spi.container.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.container.PersistentVolumeAware;
 import org.entando.kubernetes.controller.spi.container.SecretToMount;
-import org.entando.kubernetes.controller.spi.container.TrustStoreAware;
 import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
 import org.entando.kubernetes.model.common.DbmsVendor;
@@ -70,7 +69,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     public static String secretName(EntandoKeycloakServer keycloakServer) {
-        return keycloakServer.getMetadata().getName() + "-admin-secret";
+        return keycloakServer.getSpec().getAdminSecretName().orElse(NameUtils.standardAdminSecretName(keycloakServer));
     }
 
     @Override
@@ -160,22 +159,22 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         } else {
             DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo = databaseSchemaConnectionInfos.get(0);
             if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
-                String driverName = databaseSchemaConnectionInfo.getVendor().getVendorConfig().getName();
+                String driverName = databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor().getName();
                 vars.add(new EnvVar(format("DB_%s_SERVICE_HOST", driverName.toUpperCase(Locale.ROOT)),
-                        databaseSchemaConnectionInfo.getInternalServiceHostname(), null));
+                        databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(), null));
                 vars.add(new EnvVar(format("DB_%s_SERVICE_PORT", driverName.toUpperCase(Locale.ROOT)),
-                        databaseSchemaConnectionInfo.getPort(), null));
+                        databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
                 vars.add(new EnvVar("DB_SERVICE_PREFIX_MAPPING", format("db-%s=DB", driverName), null));
                 vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaConnectionInfo.getUsernameRef()));
             } else {
 
-                vars.add(new EnvVar("DB_ADDR", databaseSchemaConnectionInfo.getInternalServiceHostname(), null));
-                vars.add(new EnvVar("DB_PORT", databaseSchemaConnectionInfo.getPort(), null));
+                vars.add(new EnvVar("DB_ADDR", databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(), null));
+                vars.add(new EnvVar("DB_PORT", databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
                 vars.add(new EnvVar("DB_SCHEMA", databaseSchemaConnectionInfo.getSchemaName(), null));
                 vars.add(new EnvVar("DB_USER", null, databaseSchemaConnectionInfo.getUsernameRef()));
             }
             vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaConnectionInfo), null));
-            vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabase(), null));
+            vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabaseServiceResult().getDatabaseName(), null));
             vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaConnectionInfo.getPasswordRef()));
             vars.add(new EnvVar("JDBC_PARAMS",
                     databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
@@ -204,8 +203,9 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     private String determineKeycloaksNonStandardDbVendorName(DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo) {
-        return FluentTernary.use("postgres").when(databaseSchemaConnectionInfo.getVendor().getVendorConfig() == DbmsVendorConfig.POSTGRESQL)
-                .orElse(databaseSchemaConnectionInfo.getVendor().getVendorConfig().getName());
+        return FluentTernary.use("postgres")
+                .when(databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor() == DbmsVendorConfig.POSTGRESQL)
+                .orElse(databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor().getName());
     }
 
     @Override

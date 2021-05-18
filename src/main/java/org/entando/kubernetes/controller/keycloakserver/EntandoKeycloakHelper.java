@@ -16,8 +16,14 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
+import static java.util.Optional.ofNullable;
+
+import java.util.Collections;
+import java.util.Map;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
+import org.entando.kubernetes.model.capability.ExternallyProvidedService;
+import org.entando.kubernetes.model.capability.ProvidedCapability;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
@@ -51,4 +57,13 @@ public class EntandoKeycloakHelper {
         }
         return dbmsVendor;
     }
+    public static String deriveFrontEndUrl(ProvidedCapability providedCapability) {
+        ExternallyProvidedService s = providedCapability.getSpec().getExternallyProvisionedService()
+                .orElseThrow(IllegalArgumentException::new);
+        final Map<String, String> capabilityParameters = ofNullable(providedCapability.getSpec().getCapabilityParameters())
+                .orElse(Collections.emptyMap());
+        final String port = s.getPort().map(p -> ":" + p).orElse("");
+        return ofNullable(capabilityParameters.get("frontEndUrl")).orElse("https://" + s.getHost() + port + "/auth");
+    }
+
 }

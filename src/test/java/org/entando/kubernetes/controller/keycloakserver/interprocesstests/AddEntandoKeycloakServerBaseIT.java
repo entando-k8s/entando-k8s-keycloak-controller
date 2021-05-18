@@ -29,17 +29,21 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.concurrent.TimeUnit;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
+import org.entando.kubernetes.controller.spi.capability.impl.DefaultCapabilityClient;
+import org.entando.kubernetes.controller.spi.client.impl.DefaultKubernetesClientForControllers;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.common.TrustStoreHelper;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
+import org.entando.kubernetes.controller.support.client.impl.DefaultKeycloakClient;
+import org.entando.kubernetes.controller.support.client.impl.DefaultSimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.impl.EntandoOperatorTestConfig;
 import org.entando.kubernetes.controller.support.client.impl.EntandoOperatorTestConfig.TestTarget;
 import org.entando.kubernetes.controller.support.client.impl.integrationtesthelpers.FluentIntegrationTesting;
 import org.entando.kubernetes.controller.support.client.impl.integrationtesthelpers.HttpTestHelper;
 import org.entando.kubernetes.controller.support.client.impl.integrationtesthelpers.TestFixturePreparation;
-import org.entando.kubernetes.controller.support.common.EntandoOperatorConfig;
+import org.entando.kubernetes.controller.support.command.InProcessCommandStream;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.app.EntandoApp;
 import org.entando.kubernetes.model.externaldatabase.EntandoDatabaseService;
@@ -80,11 +84,16 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
                 .fromNamespace(EntandoPluginE2ETestHelper.TEST_PLUGIN_NAMESPACE)
         );
         helper.externalDatabases().deletePgTestPod(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE);
-        EntandoKeycloakServerController controller = new EntandoKeycloakServerController(client, false);
         if (EntandoOperatorTestConfig.getTestTarget() == TestTarget.K8S) {
             helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE);
         } else {
-            helper.keycloak().listenAndRespondWithStartupEvent(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE, controller::onStartup);
+            EntandoKeycloakServerController controller = new EntandoKeycloakServerController(
+                    new DefaultKubernetesClientForControllers(helper.getClient()),
+                    new DefaultCapabilityClient(helper.getClient()),
+                    new InProcessCommandStream(new DefaultSimpleK8SClient(helper.getClient()), new DefaultKeycloakClient()),
+                    new DefaultKeycloakClient()
+            );
+            helper.keycloak().listenAndRun(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE, controller);
         }
     }
 
