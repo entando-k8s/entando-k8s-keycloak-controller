@@ -39,6 +39,7 @@ import org.entando.kubernetes.model.common.EntandoDeploymentPhase;
 import org.entando.kubernetes.model.common.ExposedServerStatus;
 import org.entando.kubernetes.model.common.ResourceReference;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
+import org.entando.kubernetes.test.common.SourceLink;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,6 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     public static final String SPECIFIED_SSO = "specified-sso";
 
     @Test
-    @Story("Story4")
     @Description("Should link to external service when all required fields are provided")
     void shouldLinkToExternalService() {
         step("Given I have configured a secret with admin credentials to a remote Keycloak server", () -> {
@@ -121,7 +121,6 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     }
 
     @Test
-    @Story("Story5")
     @Description("Should fail when the admin secret specified is absent in the deployment namespace")
     void shouldFailWhenAdminSecretAbsent() {
         step("Given I have configured not configured a secret with admin credentials to a remote Keycloak server");
@@ -170,7 +169,6 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     }
 
     @Test
-    @Story("Story6")
     @Description("Should fail when no host name is specified")
     void shouldFailWhenNoHostNameSpecified() {
         final SerializedEntandoResource forResource = newResourceRequiringCapability();
@@ -228,7 +226,6 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     }
 
     @Test
-    @Story("Story6")
     @Description("Should fail when no admin secret name is specified")
     void shouldFailWhenNoAdminSecretName() {
         final SerializedEntandoResource forResource = newResourceRequiringCapability();
