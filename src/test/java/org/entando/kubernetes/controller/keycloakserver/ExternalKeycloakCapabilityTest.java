@@ -24,7 +24,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
 import org.entando.kubernetes.controller.spi.client.SerializedEntandoResource;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -56,7 +55,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     public static final String SPECIFIED_SSO = "specified-sso";
 
     @Test
-    @Description("Should link to external service when all required fields are provided")
+    @Description("Should link to external SSO service when all required fields are provided")
     void shouldLinkToExternalService() {
         step("Given I have configured a secret with admin credentials to a remote Keycloak server", () -> {
             final Secret adminSecret = new SecretBuilder()
@@ -273,12 +272,12 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                             () -> {
                                 assertThat(entandoKeycloakServer.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
                                         .getDetailMessage()).contains(
-                                        "Please provide the name of the secret containing the admin credentials server you intend to "
-                                                + "connect to");
+                                        "Please provide the name of the secret containing the admin credentials for the SSO service you "
+                                                + "intend to connect to");
                                 assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
                                         .getDetailMessage()).contains(
-                                        "Please provide the name of the secret containing the admin credentials server you intend to "
-                                                + "connect to");
+                                        "Please provide the name of the secret containing the admin credentials for the SSO service you "
+                                                + "intend to connect to");
                             });
                 });
     }

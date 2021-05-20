@@ -24,7 +24,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
-import io.qameta.allure.Story;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
@@ -94,27 +93,26 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                             + "implementing Kubernetes resources",
                     () -> assertThat(ResourceUtils.customResourceOwns(entandoKeycloakServer, providedCapability)));
             step("and its the specified externally provisioned service object reflects the connection info provided in the "
-                            + "CapabilityRequirement",
+                            + "EntandoKeycloakServer",
                     () -> {
                         assertThat(providedCapability.getSpec().getExternallyProvisionedService().get().getHost())
                                 .isEqualTo("kc.apps.serv.run");
+                        assertThat(providedCapability.getSpec().getExternallyProvisionedService().get().getAdminSecretName())
+                                .isEqualTo("my-existing-sso-admin-secret");
                         assertThat(providedCapability.getSpec().getExternallyProvisionedService().get().getPort()).contains(443);
                         assertThat(providedCapability.getSpec().getExternallyProvisionedService().get().getPath()).contains("/auth");
                     });
         });
         final ProvidedKeycloakCapability providedKeycloak = new ProvidedKeycloakCapability(
                 client.capabilities().buildCapabilityProvisioningResult(providedCapability));
-        step("And the provided Keycloak connection info reflects the external service", () -> {
-
-            step("using the 'Use External' provisioningStrategy",
-                    () -> assertThat(providedKeycloak.determineBaseUrl()).isEqualTo("https://kc.apps.serv.run/auth"));
-        });
+        step("And the provided Keycloak connection info reflects the external service",
+                () -> assertThat(providedKeycloak.determineBaseUrl()).isEqualTo("https://kc.apps.serv.run/auth"));
     }
 
     @Test
     @Description("Should fail when the admin secret specified is absent in the deployment namespace")
     void shouldFailWhenAdminSecretAbsent() {
-        step("Given I have configured not configured a secret with admin credentials to a remote Keycloak server");
+        step("Given I have not configured a secret with admin credentials to a remote Keycloak server");
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
         step("Then an IllegalState exception is thrown by the CapabilityProvider", () ->
                 assertThrows(CommandLine.ExecutionException.class,
@@ -158,9 +156,8 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
     }
 
     @Test
-    @Story("Story6")
     @Description("Should fail when no frontEndUrl is specified")
-    void shouldFailWhenFrontEndUrlSpecified() {
+    void shouldFailWhenNoFrontEndUrlSpecified() {
         step("Given I have configured a secret with admin credentials to a remote Keycloak server", () -> {
             final Secret adminSecret = new SecretBuilder()
                     .withNewMetadata()
@@ -205,16 +202,15 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                             () -> {
                                 assertThat(entandoKeycloakServer.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
                                         .getDetailMessage()).contains(
-                                        "Please provide the base URL of the SSO server you intend to connect to");
+                                        "Please provide the base URL of the SSO service you intend to connect to");
                                 assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
                                         .getDetailMessage()).contains(
-                                        "Please provide the base URL of the SSO server you intend to connect to");
+                                        "Please provide the base URL of the SSO service you intend to connect to");
                             });
                 });
     }
 
     @Test
-    @Story("Story6")
     @Description("Should fail when no admin secret name is specified")
     void shouldFailWhenNoAdminSecretName() {
         step("Given I have configured a secret with admin credentials to a remote Keycloak server", () -> {
@@ -261,11 +257,13 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                             () -> {
                                 assertThat(entandoKeycloakServer.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
                                         .getDetailMessage()).contains(
-                                        "Please provide the name of the secret containing the admin credentials server you intend to "
+                                        "Please provide the name of the secret containing the admin credentials for the SSO service you "
+                                                + "intend to "
                                                 + "connect to");
                                 assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
                                         .getDetailMessage()).contains(
-                                        "Please provide the name of the secret containing the admin credentials server you intend to "
+                                        "Please provide the name of the secret containing the admin credentials for the SSO service you "
+                                                + "intend to "
                                                 + "connect to");
                             });
                 });

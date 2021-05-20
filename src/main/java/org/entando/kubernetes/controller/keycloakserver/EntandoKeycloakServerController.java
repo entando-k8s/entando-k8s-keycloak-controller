@@ -35,6 +35,7 @@ import org.entando.kubernetes.controller.spi.capability.CapabilityProvisioningRe
 import org.entando.kubernetes.controller.spi.client.KubernetesClientForControllers;
 import org.entando.kubernetes.controller.spi.command.CommandStream;
 import org.entando.kubernetes.controller.spi.command.SerializingDeployCommand;
+import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.container.KeycloakConnectionConfig;
@@ -43,7 +44,6 @@ import org.entando.kubernetes.controller.spi.container.ProvidedDatabaseCapabilit
 import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
 import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
-import org.entando.kubernetes.controller.support.controller.EntandoControllerException;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.CapabilityRequirement;
 import org.entando.kubernetes.model.capability.CapabilityRequirementBuilder;
@@ -133,12 +133,12 @@ public class EntandoKeycloakServerController implements Runnable {
                 .orElse(false)) {
             final ExternallyProvidedService externallyProvidedService = providedCapability.getSpec().getExternallyProvisionedService()
                     .orElseThrow(() -> new EntandoControllerException(
-                            "Please provide the connection information of the SSO server you intend to connect to using the "
+                            "Please provide the connection information of the SSO service you intend to connect to using the "
                                     + "ProvidedCapability.spec.externallyProvisionedService object."));
             String adminSecretName = ofNullable(externallyProvidedService.getAdminSecretName())
                     .orElseThrow(() -> new EntandoControllerException(
-                            "Please provide the name of the secret containing the admin credentials server you intend to connect to "
-                                    + "using the "
+                            "Please provide the name of the secret containing the admin credentials for the SSO service you intend to "
+                                    + "connect to using the "
                                     + "ProvidedCapability.spec.externallyProvisionedService.adminSecretName property."));
             if (ofNullable(k8sClient.loadStandardResource(SECRET_KIND, providedCapability.getMetadata().getNamespace(), adminSecretName))
                     .isEmpty()) {
@@ -159,12 +159,13 @@ public class EntandoKeycloakServerController implements Runnable {
                 .orElse(false)) {
             if (entandoKeycloakServer.getSpec().getFrontEndUrl().isEmpty()) {
                 throw new EntandoControllerException(
-                        "Please provide the base URL of the SSO server you intend to connect to using the "
+                        "Please provide the base URL of the SSO service you intend to connect to using the "
                                 + "EntandoKeycloakServer.spec.frontEndUrl property.");
             }
             String adminSecretName = entandoKeycloakServer.getSpec().getAdminSecretName()
                     .orElseThrow(() -> new EntandoControllerException(
-                            "Please provide the name of the secret containing the admin credentials server you intend to connect to "
+                            "Please provide the name of the secret containing the admin credentials for the SSO service you intend to "
+                                    + "connect to "
                                     + "using the "
                                     + "EntandoKeycloakServer.spec.adminSecretName property."));
             if (ofNullable(k8sClient.loadStandardResource(SECRET_KIND, entandoKeycloakServer.getMetadata().getNamespace(), adminSecretName))
@@ -181,8 +182,8 @@ public class EntandoKeycloakServerController implements Runnable {
                 Collections.emptyMap());
         final EntandoKeycloakServer keycloakServerWithoutDefaults = new EntandoKeycloakServerBuilder(
                 Objects.requireNonNullElseGet(k8sClient
-                        .load(EntandoKeycloakServer.class, providedCapability.getMetadata().getNamespace(),
-                                providedCapability.getMetadata().getName()),
+                                .load(EntandoKeycloakServer.class, providedCapability.getMetadata().getNamespace(),
+                                        providedCapability.getMetadata().getName()),
                         () -> new EntandoKeycloakServer(new EntandoKeycloakServerSpec())))
                 .editMetadata()
                 .withLabels(providedCapability.getMetadata().getLabels())

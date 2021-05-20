@@ -71,9 +71,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @Feature("As a deployer, I would like to deploy an EntandoKeycloakServer directly so that I have more granular control over the "
         + "configuration settings")
 @Issue("ENG-2284")
-@SourceLink("DirectlyDeployedKeycloakServerTest.java")
+@SourceLink("DeployedKeycloakServerTest.java")
 @SuppressWarnings({"java:S5961"})//because this test is intended to generate documentation and should read like the generated document
-class DirectlyDeployedKeycloakServerTest extends KeycloakTestBase {
+class DeployedKeycloakServerTest extends KeycloakTestBase {
 
     public static final String MY_KEYCLOAK = "my-keycloak";
 
@@ -137,7 +137,7 @@ class DirectlyDeployedKeycloakServerTest extends KeycloakTestBase {
                     .isNotNull();
             attacheKubernetesResource("PostgreSQL DBMS Capability", capability);
         });
-        step("And a database schema was prepared for the RedHat SSO server", () -> {
+        step("And a database schema was prepared for the RedHat SSO service", () -> {
             final Pod dbPreparationPod = getClient().pods().loadPod(MY_NAMESPACE,
                     Map.of("EntandoResourceKind", "EntandoKeycloakServer", "jobKind", "db-preparation-job", "EntandoKeycloakServer",
                             MY_KEYCLOAK));
