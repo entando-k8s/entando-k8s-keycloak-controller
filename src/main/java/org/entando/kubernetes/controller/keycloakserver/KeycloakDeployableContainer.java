@@ -39,7 +39,7 @@ import org.entando.kubernetes.controller.spi.container.IngressingContainer;
 import org.entando.kubernetes.controller.spi.container.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.container.PersistentVolumeAware;
 import org.entando.kubernetes.controller.spi.container.SecretToMount;
-import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
+import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.common.EntandoResourceRequirements;
@@ -53,11 +53,11 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     public static final String REDHAT_SSO_IMAGE_NAME = "entando/entando-redhat-sso";
 
     private final EntandoKeycloakServer keycloakServer;
-    private final DatabaseServiceResult databaseServiceResult;
+    private final DatabaseConnectionInfo databaseServiceResult;
     private final Secret caCertSecret;
     private final List<DatabaseSchemaConnectionInfo> databaseSchemaConnectionInfos;
 
-    public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult,
+    public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseConnectionInfo databaseServiceResult,
             Secret caCertSecret) {
         this.keycloakServer = keycloakServer;
         this.databaseServiceResult = databaseServiceResult;

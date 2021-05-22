@@ -19,27 +19,32 @@ package org.entando.kubernetes.controller.keycloakserver;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import org.entando.kubernetes.controller.spi.command.CommandStream;
+import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
+import org.entando.kubernetes.controller.spi.capability.SerializingCapabilityProvider;
+import org.entando.kubernetes.controller.spi.command.DeploymentProcessor;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
-import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
-import org.entando.kubernetes.controller.support.client.doubles.EntandoResourceClientDouble;
 import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.test.common.ControllerTestHelper;
 import org.entando.kubernetes.test.common.FluentTraversals;
 import org.junit.jupiter.api.AfterEach;
 import org.mockito.Mock;
-import org.mockito.Spy;
 
 abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelper {
 
     public static final String DEFAULT_SSO_IN_NAMESPACE = "default-sso-in-namespace";
-    @Spy
-    protected final SimpleK8SClient<EntandoResourceClientDouble> client = new SimpleK8SClientDouble();
+
+    protected final SimpleK8SClientDouble client = new SimpleK8SClientDouble();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(5);
+    private CapabilityProvider capabilityProvider;
     @Mock
     private SimpleKeycloakClient keycloakClient;
+
+    public CapabilityProvider getCapabilityProvider() {
+        return new SerializingCapabilityProvider(getClient().entandoResources(), new AllureAttachingCommandStream(client,
+                getKeycloakClient().orElseThrow(IllegalStateException::new)));
+    }
 
     @Override
     public Optional<SimpleKeycloakClient> getKeycloakClient() {
@@ -47,7 +52,7 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     }
 
     @Override
-    public SimpleK8SClient<EntandoResourceClientDouble> getClient() {
+    public SimpleK8SClientDouble getClient() {
         return client;
     }
 
@@ -58,7 +63,7 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
 
     @AfterEach
     void resetSystemProps() {
-        System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
+        System.getProperties().remove(EntandoOperatorSpiConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorSpiConfigProperty.ENTANDO_CA_SECRET_NAME.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_TLS_SECRET_NAME.getJvmSystemProperty());
         System.getProperties().remove(EntandoOperatorConfigProperty.ENTANDO_DOCKER_IMAGE_VERSION_FALLBACK.getJvmSystemProperty());
@@ -71,8 +76,8 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     }
 
     @Override
-    public Runnable createController(SimpleK8SClient<EntandoResourceClientDouble> client, SimpleKeycloakClient keycloakClient,
-            CommandStream commandStream) {
-        return new EntandoKeycloakServerController(client.entandoResources(), client.capabilities(), commandStream, keycloakClient);
+    public Runnable createController(DeploymentProcessor deploymentProcessor) {
+        return new EntandoKeycloakServerController(getClient().entandoResources(), deploymentProcessor, getCapabilityProvider(),
+                getKeycloakClient().orElseThrow(IllegalStateException::new));
     }
 }

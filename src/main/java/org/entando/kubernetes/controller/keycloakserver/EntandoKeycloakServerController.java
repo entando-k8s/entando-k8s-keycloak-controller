@@ -27,14 +27,13 @@ import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import javax.inject.Inject;
-import org.entando.kubernetes.controller.spi.capability.CapabilityClient;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvisioningResult;
 import org.entando.kubernetes.controller.spi.client.KubernetesClientForControllers;
-import org.entando.kubernetes.controller.spi.command.CommandStream;
-import org.entando.kubernetes.controller.spi.command.SerializingDeployCommand;
+import org.entando.kubernetes.controller.spi.command.DeploymentProcessor;
 import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
@@ -42,7 +41,7 @@ import org.entando.kubernetes.controller.spi.container.KeycloakConnectionConfig;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
 import org.entando.kubernetes.controller.spi.container.ProvidedDatabaseCapability;
 import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
-import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
+import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.CapabilityRequirement;
@@ -66,29 +65,30 @@ import picocli.CommandLine;
 public class EntandoKeycloakServerController implements Runnable {
 
     public static final String SECRET_KIND = "Secret";
+    public static final int KEYCLOAK_DEPLOYMENT_TIME = 300;
+    public static final int DATBASE_DEPLOYMENT_TIME = 120;
     private final Logger logger = Logger.getLogger(EntandoKeycloakServerController.class.getName());
     private final KubernetesClientForControllers k8sClient;
     private final CapabilityProvider capabilityProvider;
     private final SimpleKeycloakClient keycloakClient;
-    private final SerializingDeployCommand serializingDeployCommand;
+    private final DeploymentProcessor deploymentProcessor;
     private static final Collection<Class<? extends EntandoCustomResource>> SUPPORTED_RESOURCE_KINDS = Arrays
             .asList(EntandoKeycloakServer.class, ProvidedCapability.class);
-    private EntandoKeycloakServer entandoKeycloakServer;
+    private EntandoKeycloakServer keycloakServer;
     private ProvidedCapability providedCapability;
 
     @Inject
-    public EntandoKeycloakServerController(KubernetesClientForControllers k8sClient, CapabilityClient capabilityClient,
-            CommandStream commandStream, SimpleKeycloakClient keycloakClient) {
+    public EntandoKeycloakServerController(KubernetesClientForControllers k8sClient, DeploymentProcessor deploymentProcessor,
+            CapabilityProvider capabilityProvider, SimpleKeycloakClient keycloakClient) {
         this.k8sClient = k8sClient;
-        this.capabilityProvider = new CapabilityProvider(capabilityClient);
+        this.capabilityProvider = capabilityProvider;
         this.keycloakClient = keycloakClient;
-        this.serializingDeployCommand = new SerializingDeployCommand(k8sClient, commandStream);
+        this.deploymentProcessor = deploymentProcessor;
     }
 
     @Override
     public void run() {
-        EntandoCustomResource resourceToProcess = k8sClient.resolveCustomResourceToProcess(SUPPORTED_RESOURCE_KINDS);
-        k8sClient.updatePhase(resourceToProcess, EntandoDeploymentPhase.STARTED);
+        EntandoCustomResource resourceToProcess = startProcessingResource();
         try {
             //No need to update the resource being synced to. It will be ignored by ControllerCoordinator
             if (resourceToProcess instanceof EntandoKeycloakServer) {
@@ -96,36 +96,38 @@ public class EntandoKeycloakServerController implements Runnable {
                 // ProvidedCapability
                 //The ProvidedCapability is to be owned by the implementing CustomResource and will therefore be ignored by
                 // ControllerCoordinator
-                this.entandoKeycloakServer = (EntandoKeycloakServer) resourceToProcess;
-                this.providedCapability = syncFromImplementingResourceToCapability(this.entandoKeycloakServer);
-                this.k8sClient.createOrPatchEntandoResource(this.providedCapability);
-                validateExternalServiceRequirements(entandoKeycloakServer);
+                this.keycloakServer = (EntandoKeycloakServer) resourceToProcess;
+                this.providedCapability = this.k8sClient.createOrPatchEntandoResource(toCapability(this.keycloakServer));
+                validateExternalServiceRequirements(keycloakServer);
             } else {
                 //This event originated from the capability requirement, and we need to keep the implementing CustomResource in sync
                 //The implementing CustomResource is to be owned by the ProvidedCapability and will therefore be ignored by
                 // ControllerCoordinator
                 this.providedCapability = (ProvidedCapability) resourceToProcess;
-                this.entandoKeycloakServer = syncFromCapabilityToImplementingCustomResource(this.providedCapability);
-                this.k8sClient.createOrPatchEntandoResource(this.entandoKeycloakServer);
+                this.keycloakServer = this.k8sClient.createOrPatchEntandoResource(toKeycloakServer(this.providedCapability));
                 validateExternalServiceRequirements(this.providedCapability);
             }
-            KeycloakDeployable deployable = new KeycloakDeployable(entandoKeycloakServer,
-                    prepareKeycloakDatabaseService(entandoKeycloakServer), resolveCaSecret());
-            KeycloakDeploymentResult result = serializingDeployCommand.processDeployable(deployable);
-            k8sClient.updateStatus(entandoKeycloakServer, result.getStatus());
-            k8sClient.updateStatus(providedCapability, result.getStatus());
-            if (entandoKeycloakServer.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
+            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, databaseServiceFor(keycloakServer), resolveCaSecret());
+            KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable, KEYCLOAK_DEPLOYMENT_TIME);
+            keycloakServer = k8sClient.updateStatus(keycloakServer, result.getStatus());
+            providedCapability = k8sClient.updateStatus(providedCapability, result.getStatus());
+            if (keycloakServer.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
                     != CapabilityProvisioningStrategy.USE_EXTERNAL) {
                 ensureHttpAccess(result);
             }
             ensureKeycloakRealm(new ProvidedKeycloakCapability(capabilityProvider.loadProvisioningResult(providedCapability)));
-            k8sClient.updatePhase(entandoKeycloakServer, EntandoDeploymentPhase.SUCCESSFUL);
-            k8sClient.updatePhase(providedCapability, EntandoDeploymentPhase.SUCCESSFUL);
+            keycloakServer = k8sClient.updatePhase(keycloakServer, EntandoDeploymentPhase.SUCCESSFUL);
+            providedCapability = k8sClient.updatePhase(providedCapability, EntandoDeploymentPhase.SUCCESSFUL);
         } catch (Exception e) {
-            k8sClient.deploymentFailed(entandoKeycloakServer, e);
-            k8sClient.deploymentFailed(providedCapability, e);
+            e.printStackTrace();
+            keycloakServer = k8sClient.deploymentFailed(keycloakServer, e);
+            providedCapability = k8sClient.deploymentFailed(providedCapability, e);
             throw new CommandLine.ExecutionException(new CommandLine(this), e.getMessage(), e);
         }
+    }
+
+    private EntandoCustomResource startProcessingResource() {
+        return k8sClient.updatePhase(k8sClient.resolveCustomResourceToProcess(SUPPORTED_RESOURCE_KINDS), EntandoDeploymentPhase.STARTED);
     }
 
     private void validateExternalServiceRequirements(ProvidedCapability providedCapability) {
@@ -177,7 +179,7 @@ public class EntandoKeycloakServerController implements Runnable {
         }
     }
 
-    private EntandoKeycloakServer syncFromCapabilityToImplementingCustomResource(ProvidedCapability providedCapability) {
+    private EntandoKeycloakServer toKeycloakServer(ProvidedCapability providedCapability) {
         final Map<String, String> capabilityParameters = ofNullable(providedCapability.getSpec().getCapabilityParameters()).orElse(
                 Collections.emptyMap());
         final EntandoKeycloakServer keycloakServerWithoutDefaults = new EntandoKeycloakServerBuilder(
@@ -216,7 +218,7 @@ public class EntandoKeycloakServerController implements Runnable {
         return entandoKeycloakServerWithDefaults;
     }
 
-    private ProvidedCapability syncFromImplementingResourceToCapability(EntandoKeycloakServer resourceToProcess) {
+    private ProvidedCapability toCapability(EntandoKeycloakServer resourceToProcess) {
         ExternallyProvidedService externalService = resourceToProcess.getSpec().getFrontEndUrl()
                 .map(ExternalKeycloakService::new)
                 .map(s -> new ExternallyProvidedServiceFluent<>().withPort(s.getPort()).withHost(s.getHost())
@@ -273,7 +275,7 @@ public class EntandoKeycloakServerController implements Runnable {
         );
     }
 
-    private DatabaseServiceResult prepareKeycloakDatabaseService(EntandoKeycloakServer newEntandoKeycloakServer) {
+    private DatabaseConnectionInfo databaseServiceFor(EntandoKeycloakServer newEntandoKeycloakServer) throws TimeoutException {
         // Create database for Keycloak
         final DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(newEntandoKeycloakServer);
         if (dbmsVendor == DbmsVendor.EMBEDDED) {
@@ -287,7 +289,7 @@ public class EntandoKeycloakServerController implements Runnable {
                             .withCapabilityRequirementScope(
                                     newEntandoKeycloakServer.getSpec().isDefault() ? CapabilityScope.DEDICATED : CapabilityScope.NAMESPACE)
                             .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
-                            .build());
+                            .build(), DATBASE_DEPLOYMENT_TIME);
             return new ProvidedDatabaseCapability(databaseCapability);
         }
     }

@@ -18,9 +18,9 @@ package org.entando.kubernetes.controller.keycloakserver;
 
 import static io.qameta.allure.Allure.step;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
@@ -37,7 +37,6 @@ import io.qameta.allure.Issue;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
-import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
 import org.entando.kubernetes.controller.spi.command.SerializationHelper;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
@@ -89,9 +88,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
         theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("And there is a controller to process requests for the DBMS capability",
-                () -> when(client.capabilities().createAndWatchResource(argThat(matchesCapability(StandardCapability.DBMS)), any()))
-                        .thenAnswer(withADatabaseCapabiltyStatus(DbmsVendor.POSTGRESQL, "my_db")));
-
+                () -> doAnswer(withADatabaseCapabilityStatus(DbmsVendor.POSTGRESQL, "my_db")).when(client.capabilities())
+                        .createAndWaitForCapability(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
         step("When I create an EntandoKeycloakServer with minimal configuration",
                 () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
                         .withNewMetadata()
@@ -284,9 +282,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
 
         });
         step("And the resulting KeycloakConnectionConfig reflects the correct information to connect to the deployed SSO service", () -> {
-            final CapabilityProvider capabilityProvider = new CapabilityProvider(getClient().capabilities());
             KeycloakConnectionConfig connectionConfig = new ProvidedKeycloakCapability(
-                    capabilityProvider.loadProvisioningResult(providedCapability));
+                    getCapabilityProvider().loadProvisioningResult(providedCapability));
             Allure.attachment("KeycloakConnectionConfig", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-my-namespace.entando.org/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
@@ -316,8 +313,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
         step("And the routing suffix has been configured globally ",
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
         step("And there is a controller to process requests for the DBMS capability",
-                () -> when(client.capabilities().createAndWatchResource(argThat(matchesCapability(StandardCapability.DBMS)), any()))
-                        .thenAnswer(withADatabaseCapabiltyStatus(DbmsVendor.MYSQL, "my_db")));
+                () -> doAnswer(withADatabaseCapabilityStatus(DbmsVendor.MYSQL, "my_db")).when(client.capabilities())
+                        .createAndWaitForCapability(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
 
         theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("When I create an EntandoKeyCloakServer with preferred hostname, TLS secret, DBMS and storageClass specified",
@@ -377,9 +374,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
             });
         });
         step("And the resulting KeycloakConnectionConfig reflects the correct information to connect to the deployed SSO service", () -> {
-            final CapabilityProvider capabilityProvider = new CapabilityProvider(getClient().capabilities());
             KeycloakConnectionConfig connectionConfig = new ProvidedKeycloakCapability(
-                    capabilityProvider.loadProvisioningResult(providedCapability));
+                    getCapabilityProvider().loadProvisioningResult(providedCapability));
             Allure.attachment("KeycloakConnectionConfig", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://myhost.com/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
@@ -387,7 +383,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
             assertThat(connectionConfig.getPassword()).isNotBlank();
         });
-        attachKubernetesState((SimpleK8SClientDouble) getClient());
+        attachKubernetesState(getClient());
     }
 
     @Test
@@ -432,7 +428,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
                             "/etc/entando/certs/my-ca-certs/cert1.crt",
                             "/etc/entando/certs/my-ca-certs/cert2.crt"));
         });
-        attachKubernetesState((SimpleK8SClientDouble) getClient());
+        attachKubernetesState(getClient());
     }
 
 }

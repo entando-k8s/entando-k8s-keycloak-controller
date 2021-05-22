@@ -114,7 +114,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
     void shouldFailWhenAdminSecretAbsent() {
         step("Given I have not configured a secret with admin credentials to a remote Keycloak server");
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
-        step("Then an IllegalState exception is thrown by the CapabilityProvider", () ->
+        step("Then a CommandLine ExecutionException by the EntandoKeycloakServerController", () ->
                 assertThrows(CommandLine.ExecutionException.class,
                         () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
                                 .withNewMetadata()
@@ -171,7 +171,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
             attacheKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
-        step("Then an IllegalState exception is thrown by the CapabilityProvider", () ->
+        step("Then a CommandLine ExecutionException by the EntandoKeycloakServerController", () ->
                 assertThrows(CommandLine.ExecutionException.class,
                         () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
                                 .withNewMetadata()
@@ -226,7 +226,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
             attacheKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
-        step("Then an IllegalState exception is thrown by the CapabilityProvider", () ->
+        step("Then a CommandLine ExecutionException by the EntandoKeycloakServerController", () ->
                 assertThrows(CommandLine.ExecutionException.class,
                         () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
                                 .withNewMetadata()

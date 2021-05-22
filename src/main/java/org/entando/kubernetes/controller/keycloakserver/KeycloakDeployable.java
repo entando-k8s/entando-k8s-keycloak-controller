@@ -33,7 +33,7 @@ import org.entando.kubernetes.controller.spi.container.DeployableContainer;
 import org.entando.kubernetes.controller.spi.deployable.DbAwareDeployable;
 import org.entando.kubernetes.controller.spi.deployable.ExternalService;
 import org.entando.kubernetes.controller.spi.deployable.Secretive;
-import org.entando.kubernetes.controller.spi.result.DatabaseServiceResult;
+import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
 import org.entando.kubernetes.controller.support.spibase.IngressingDeployableBase;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -49,7 +49,7 @@ public class KeycloakDeployable
     private final List<DeployableContainer> containers;
     private Secret keycloakAdminSecret;
 
-    public KeycloakDeployable(EntandoKeycloakServer keycloakServer, DatabaseServiceResult databaseServiceResult, Secret caCertSecret) {
+    public KeycloakDeployable(EntandoKeycloakServer keycloakServer, DatabaseConnectionInfo databaseServiceResult, Secret caCertSecret) {
         this.keycloakServer = keycloakServer;
         this.containers = Collections.singletonList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult, caCertSecret));
         if (keycloakServer.getSpec().getAdminSecretName().isEmpty()) {
@@ -58,6 +58,11 @@ public class KeycloakDeployable
                     KeycloakDeployableContainer.secretName(this.keycloakServer),
                     "entando_keycloak_admin");
         }
+    }
+
+    @Override
+    public boolean isIngressRequired() {
+        return keycloakServer.getSpec().getProvisioningStrategy().map(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY::equals).orElse(true);
     }
 
     @Override

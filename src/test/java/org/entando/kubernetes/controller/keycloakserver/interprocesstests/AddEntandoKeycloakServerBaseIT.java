@@ -29,8 +29,9 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.concurrent.TimeUnit;
 import org.entando.kubernetes.controller.keycloakserver.EntandoKeycloakServerController;
-import org.entando.kubernetes.controller.spi.capability.impl.DefaultCapabilityClient;
+import org.entando.kubernetes.controller.spi.capability.SerializingCapabilityProvider;
 import org.entando.kubernetes.controller.spi.client.impl.DefaultKubernetesClientForControllers;
+import org.entando.kubernetes.controller.spi.command.SerializingDeploymentProcessor;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -87,10 +88,12 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
         if (EntandoOperatorTestConfig.getTestTarget() == TestTarget.K8S) {
             helper.keycloak().listenAndRespondWithImageVersionUnderTest(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE);
         } else {
+            final DefaultSimpleK8SClient simpleK8SClient = new DefaultSimpleK8SClient(helper.getClient());
+            final InProcessCommandStream commandStream = new InProcessCommandStream(simpleK8SClient, new DefaultKeycloakClient());
             EntandoKeycloakServerController controller = new EntandoKeycloakServerController(
                     new DefaultKubernetesClientForControllers(helper.getClient()),
-                    new DefaultCapabilityClient(helper.getClient()),
-                    new InProcessCommandStream(new DefaultSimpleK8SClient(helper.getClient()), new DefaultKeycloakClient()),
+                    new SerializingDeploymentProcessor(simpleK8SClient.entandoResources(), commandStream),
+                    new SerializingCapabilityProvider(simpleK8SClient.entandoResources(), commandStream),
                     new DefaultKeycloakClient()
             );
             helper.keycloak().listenAndRun(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE, controller);

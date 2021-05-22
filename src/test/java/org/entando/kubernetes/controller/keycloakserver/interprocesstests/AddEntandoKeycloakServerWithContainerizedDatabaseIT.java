@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import org.entando.kubernetes.controller.spi.common.DbmsDockerVendorStrategy;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -44,7 +45,7 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
 
     @AfterEach
     void resetComplianceMode() {
-        System.clearProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
+        System.clearProperty(EntandoOperatorSpiConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty());
         System.clearProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_IMAGE_PULL_SECRETS.getJvmSystemProperty());
     }
 
@@ -52,7 +53,7 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
     @EnumSource(value = EntandoOperatorComplianceMode.class, names = {"COMMUNITY", "REDHAT"})
     void create(EntandoOperatorComplianceMode complianceMode) {
         //Given the operator runs in a specified complianceMode
-        System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty(),
+        System.setProperty(EntandoOperatorSpiConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE.getJvmSystemProperty(),
                 complianceMode.name().toLowerCase());
         System.setProperty(EntandoOperatorConfigProperty.ENTANDO_K8S_OPERATOR_IMAGE_PULL_SECRETS.getJvmSystemProperty(), "redhat-registry");
         //When I create a EntandoKeycloakServer and I specify it to use PostgreSQL

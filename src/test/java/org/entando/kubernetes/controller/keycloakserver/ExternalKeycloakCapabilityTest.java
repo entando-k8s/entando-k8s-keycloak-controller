@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import org.entando.kubernetes.controller.spi.client.SerializedEntandoResource;
+import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
@@ -124,7 +125,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     void shouldFailWhenAdminSecretAbsent() {
         step("Given I have configured not configured a secret with admin credentials to a remote Keycloak server");
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
-        step("Then an IllegalState exception is thrown by the CapabilityProvider", () -> {
+        step("Then an EntandoControllerException is thrown by the CapabilityProvider", () -> {
             final SerializedEntandoResource forResource = newResourceRequiringCapability();
             final CapabilityRequirement build = new CapabilityRequirementBuilder()
                     .withCapability(StandardCapability.SSO)
@@ -137,7 +138,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     .withAdminSecretName("my-existing-sso-admin-secret")
                     .endExternallyProvidedService()
                     .build();
-            assertThrows(IllegalStateException.class,
+            assertThrows(EntandoControllerException.class,
                     () -> runControllerAgainst(forResource, build));
         });
         final ProvidedCapability providedCapability = client.entandoResources()
@@ -184,7 +185,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
             attacheKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
-        step("Then an IllegalState exception is thrown by the CapabilityProvider", () -> {
+        step("Then an EntandoControllerException is thrown by the CapabilityProvider", () -> {
             final CapabilityRequirement capabilityRequirement = new CapabilityRequirementBuilder()
                     .withCapability(StandardCapability.SSO)
                     .withProvisioningStrategy(CapabilityProvisioningStrategy.USE_EXTERNAL)
@@ -196,7 +197,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     .withAdminSecretName("my-existing-sso-admin-secret")
                     .endExternallyProvidedService()
                     .build();
-            assertThrows(IllegalStateException.class,
+            assertThrows(EntandoControllerException.class,
                     () -> runControllerAgainst(forResource, capabilityRequirement));
         });
         final ProvidedCapability providedCapability = client.entandoResources()
@@ -241,7 +242,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
             attacheKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
-        step("Then an IllegalState exception is thrown by the CapabilityProvider", () -> {
+        step("Then an EntandoControllerException is thrown by the CapabilityProvider", () -> {
             final CapabilityRequirement capabilityRequirement = new CapabilityRequirementBuilder()
                     .withCapability(StandardCapability.SSO)
                     .withProvisioningStrategy(CapabilityProvisioningStrategy.USE_EXTERNAL)
@@ -253,7 +254,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     .withAdminSecretName(null)//NO ADMIN SECRET!!
                     .endExternallyProvidedService()
                     .build();
-            assertThrows(IllegalStateException.class, () -> runControllerAgainst(forResource, capabilityRequirement));
+            assertThrows(EntandoControllerException.class, () -> runControllerAgainst(forResource, capabilityRequirement));
         });
         final ProvidedCapability providedCapability = client.entandoResources()
                 .load(ProvidedCapability.class, MY_NAMESPACE, DEFAULT_SSO_IN_NAMESPACE);
