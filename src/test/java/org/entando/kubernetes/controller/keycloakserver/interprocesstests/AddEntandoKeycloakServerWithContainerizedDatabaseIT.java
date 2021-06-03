@@ -101,6 +101,6 @@ class AddEntandoKeycloakServerWithContainerizedDatabaseIT extends AddEntandoKeyc
         assertThat(deployment.getStatus().getReadyReplicas(), greaterThanOrEqualTo(1));
         assertThat("It has a db status", helper.keycloak().getOperations()
                 .inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
-                .fromServer().get().getStatus().forDbQualifiedBy("db").isPresent());
+                .fromServer().get().getStatus().getServerStatus("db").isPresent());
     }
 }

@@ -22,7 +22,6 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -36,7 +35,6 @@ import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.common.TrustStoreHelper;
-import org.entando.kubernetes.controller.spi.container.KeycloakName;
 import org.entando.kubernetes.controller.support.client.impl.DefaultKeycloakClient;
 import org.entando.kubernetes.controller.support.client.impl.DefaultSimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.impl.EntandoOperatorTestConfig;
@@ -125,20 +123,14 @@ public abstract class AddEntandoKeycloakServerBaseIT implements FluentIntegratio
         assertTrue(deployment.getStatus().getReadyReplicas() >= 1);
         assertTrue(helper.keycloak().getOperations()
                 .inNamespace(KeycloakE2ETestHelper.KEYCLOAK_NAMESPACE).withName(KeycloakE2ETestHelper.KEYCLOAK_NAME)
-                .fromServer().get().getStatus().forServerQualifiedBy("server").isPresent());
+                .fromServer().get().getStatus().getServerStatus("server").isPresent());
 
         Secret adminSecret = client.secrets()
                 .inNamespace(client.getNamespace())
-                .withName(KeycloakName.forTheAdminSecret(entandoKeycloakServer))
+                .withName(NameUtils.standardAdminSecretName(entandoKeycloakServer))
                 .get();
         assertNotNull(adminSecret);
         assertTrue(adminSecret.getData().containsKey(SecretUtils.USERNAME_KEY));
         assertTrue(adminSecret.getData().containsKey(SecretUtils.PASSSWORD_KEY));
-        ConfigMap configMap = client.configMaps()
-                .inNamespace(client.getNamespace())
-                .withName(KeycloakName.forTheConnectionConfigMap(entandoKeycloakServer))
-                .get();
-        assertNotNull(configMap);
-        assertTrue(configMap.getData().containsKey(NameUtils.URL_KEY));
     }
 }

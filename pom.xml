@@ -21,7 +21,7 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>0.0.0-SNAPSHOT-PR-3-6</version>
+        <version>0.0.0-SNAPSHOT-PR-3-11</version>
         <relativePath/>
     </parent>
     <version>6.3.0-SNAPSHOT</version>
@@ -64,10 +64,10 @@
     <properties>
         <github.organization>entando-k8s</github.organization>
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>6.3.0-SNAPSHOT</entando-k8s-operator-common.version>
+        <entando-k8s-operator-common.version>0.0.0-SNAPSHOT-PR-60-34</entando-k8s-operator-common.version>
         <skipLicenseDownload>true</skipLicenseDownload>
-        <preDeploymentTestGroups>allure</preDeploymentTestGroups>
-        <postDeploymentTestGroups>post-deployment</postDeploymentTestGroups>
+        <preDeploymentTestGroups>in-process</preDeploymentTestGroups>
+        <postDeploymentTestGroups>smoke</postDeploymentTestGroups>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
     </properties>

@@ -26,7 +26,7 @@ import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
-import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
+import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.ProvidedCapability;
 import org.entando.kubernetes.model.common.EntandoDeploymentPhase;
@@ -42,7 +42,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import picocli.CommandLine;
 
 @ExtendWith(MockitoExtension.class)
-@Tags({@Tag("component"), @Tag("in-process"), @Tag("allure")})
+@Tags({@Tag("component"), @Tag("in-process"), @Tag("inner-hexagon")})
 @Feature(
         "As a controller developer, I would like deploy an EntandoKeycloakServer that merely references an externally provisioned SSO "
                 + "service so that I "
@@ -65,10 +65,10 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                     .addToData(SecretUtils.PASSSWORD_KEY, "somepassword")
                     .build();
             getClient().secrets().createSecretIfAbsent(newResourceRequiringCapability(), adminSecret);
-            attacheKubernetesResource("Existing Admin Secret", adminSecret);
+            attachKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability  with its name and namespace explicitly specified, provisioned externally",
-                () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
+                () -> runControllerAgainstCustomResource(new EntandoKeycloakServerBuilder()
                         .withNewMetadata()
                         .withName(MY_EXTERNAL_KC)
                         .withNamespace(MY_NAMESPACE)
@@ -85,7 +85,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
         final EntandoKeycloakServer entandoKeycloakServer = client.entandoResources()
                 .load(EntandoKeycloakServer.class, MY_NAMESPACE, MY_EXTERNAL_KC);
         step("Then ProvidedCapability was made available:", () -> {
-            attacheKubernetesResource("EntandoKeycloakServer", providedCapability);
+            attachKubernetesResource("EntandoKeycloakServer", providedCapability);
             step("using the 'Use External' provisioningStrategy",
                     () -> assertThat(providedCapability.getSpec().getProvisioningStrategy()).contains(
                             CapabilityProvisioningStrategy.USE_EXTERNAL));
@@ -103,7 +103,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                         assertThat(providedCapability.getSpec().getExternallyProvisionedService().get().getPath()).contains("/auth");
                     });
         });
-        final ProvidedKeycloakCapability providedKeycloak = new ProvidedKeycloakCapability(
+        final ProvidedSsoCapability providedKeycloak = new ProvidedSsoCapability(
                 client.capabilities().buildCapabilityProvisioningResult(providedCapability));
         step("And the provided Keycloak connection info reflects the external service",
                 () -> assertThat(providedKeycloak.determineBaseUrl()).isEqualTo("https://kc.apps.serv.run/auth"));
@@ -116,7 +116,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
         step("Then a CommandLine ExecutionException by the EntandoKeycloakServerController", () ->
                 assertThrows(CommandLine.ExecutionException.class,
-                        () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
+                        () -> runControllerAgainstCustomResource(new EntandoKeycloakServerBuilder()
                                 .withNewMetadata()
                                 .withName(MY_EXTERNAL_KC)
                                 .withNamespace(MY_NAMESPACE)
@@ -135,8 +135,8 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
         step("And the resulting status objects of both the ProvidedCapability and EntandoKeycloakServer reflect the failure and the cause"
                         + " for the failure",
                 () -> {
-                    attacheKubernetesResource("EntandoKeycloakServer.status", entandoKeycloakServer.getStatus());
-                    attacheKubernetesResource("ProvidedCapability.status", providedCapability.getStatus());
+                    attachKubernetesResource("EntandoKeycloakServer.status", entandoKeycloakServer.getStatus());
+                    attachKubernetesResource("ProvidedCapability.status", providedCapability.getStatus());
                     step("The phase of the statuses of both the ProvidedCapability and EntandoKeycloakServer is FAILED", () -> {
                         assertThat(entandoKeycloakServer.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
                         assertThat(providedCapability.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
@@ -168,12 +168,12 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                     .addToData(SecretUtils.PASSSWORD_KEY, "somepassword")
                     .build();
             getClient().secrets().createSecretIfAbsent(newResourceRequiringCapability(), adminSecret);
-            attacheKubernetesResource("Existing Admin Secret", adminSecret);
+            attachKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
         step("Then a CommandLine ExecutionException by the EntandoKeycloakServerController", () ->
                 assertThrows(CommandLine.ExecutionException.class,
-                        () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
+                        () -> runControllerAgainstCustomResource(new EntandoKeycloakServerBuilder()
                                 .withNewMetadata()
                                 .withName(MY_EXTERNAL_KC)
                                 .withNamespace(MY_NAMESPACE)
@@ -192,8 +192,8 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
         step("And the resulting status objects of both the ProvidedCapability and EntandoKeycloakServer reflect the failure and the cause"
                         + " for the failure",
                 () -> {
-                    attacheKubernetesResource("EntandoKeycloakServer.status", entandoKeycloakServer.getStatus());
-                    attacheKubernetesResource("ProvidedCapability.status", providedCapability.getStatus());
+                    attachKubernetesResource("EntandoKeycloakServer.status", entandoKeycloakServer.getStatus());
+                    attachKubernetesResource("ProvidedCapability.status", providedCapability.getStatus());
                     step("The phase of the statuses of both the ProvidedCapability and EntandoKeycloakServer is FAILED", () -> {
                         assertThat(entandoKeycloakServer.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
                         assertThat(providedCapability.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
@@ -223,12 +223,12 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
                     .addToData(SecretUtils.PASSSWORD_KEY, "somepassword")
                     .build();
             getClient().secrets().createSecretIfAbsent(newResourceRequiringCapability(), adminSecret);
-            attacheKubernetesResource("Existing Admin Secret", adminSecret);
+            attachKubernetesResource("Existing Admin Secret", adminSecret);
         });
         step("When I request an SSO Capability that is externally provided to a non-existing admin secret");
         step("Then a CommandLine ExecutionException by the EntandoKeycloakServerController", () ->
                 assertThrows(CommandLine.ExecutionException.class,
-                        () -> runControllerAgainst(new EntandoKeycloakServerBuilder()
+                        () -> runControllerAgainstCustomResource(new EntandoKeycloakServerBuilder()
                                 .withNewMetadata()
                                 .withName(MY_EXTERNAL_KC)
                                 .withNamespace(MY_NAMESPACE)
@@ -247,8 +247,8 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
         step("And the resulting status objects of both the ProvidedCapability and EntandoKeycloakServer reflect the failure and the cause"
                         + " for the failure",
                 () -> {
-                    attacheKubernetesResource("EntandoKeycloakServer.status", entandoKeycloakServer.getStatus());
-                    attacheKubernetesResource("ProvidedCapability.status", providedCapability.getStatus());
+                    attachKubernetesResource("EntandoKeycloakServer.status", entandoKeycloakServer.getStatus());
+                    attachKubernetesResource("ProvidedCapability.status", providedCapability.getStatus());
                     step("The phase of the statuses of both the ProvidedCapability and EntandoKeycloakServer is FAILED", () -> {
                         assertThat(entandoKeycloakServer.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
                         assertThat(providedCapability.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);

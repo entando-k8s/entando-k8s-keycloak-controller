@@ -24,23 +24,25 @@ import io.fabric8.kubernetes.api.model.Secret;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvisioningResult;
+import org.entando.kubernetes.controller.spi.client.ExecutionResult;
 import org.entando.kubernetes.controller.spi.client.KubernetesClientForControllers;
 import org.entando.kubernetes.controller.spi.command.DeploymentProcessor;
 import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
+import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
-import org.entando.kubernetes.controller.spi.container.KeycloakConnectionConfig;
 import org.entando.kubernetes.controller.spi.container.KeycloakName;
 import org.entando.kubernetes.controller.spi.container.ProvidedDatabaseCapability;
-import org.entando.kubernetes.controller.spi.container.ProvidedKeycloakCapability;
+import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
+import org.entando.kubernetes.controller.spi.container.SsoConnectionInfo;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
@@ -115,13 +117,12 @@ public class EntandoKeycloakServerController implements Runnable {
                     != CapabilityProvisioningStrategy.USE_EXTERNAL) {
                 ensureHttpAccess(result);
             }
-            ensureKeycloakRealm(new ProvidedKeycloakCapability(capabilityProvider.loadProvisioningResult(providedCapability)));
+            ensureKeycloakRealm(new ProvidedSsoCapability(capabilityProvider.loadProvisioningResult(providedCapability)));
             keycloakServer = k8sClient.updatePhase(keycloakServer, EntandoDeploymentPhase.SUCCESSFUL);
             providedCapability = k8sClient.updatePhase(providedCapability, EntandoDeploymentPhase.SUCCESSFUL);
         } catch (Exception e) {
-            e.printStackTrace();
-            keycloakServer = k8sClient.deploymentFailed(keycloakServer, e);
-            providedCapability = k8sClient.deploymentFailed(providedCapability, e);
+            keycloakServer = k8sClient.deploymentFailed(keycloakServer, e, NameUtils.MAIN_QUALIFIER);
+            providedCapability = k8sClient.deploymentFailed(providedCapability, e, NameUtils.MAIN_QUALIFIER);
             throw new CommandLine.ExecutionException(new CommandLine(this), e.getMessage(), e);
         }
     }
@@ -195,10 +196,9 @@ public class EntandoKeycloakServerController implements Runnable {
                 .editSpec()
                 .withProvisioningStrategy(
                         providedCapability.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY))
-                .withDefault(providedCapability.getSpec().getScope().orElse(CapabilityScope.NAMESPACE) == CapabilityScope.CLUSTER)
-                .withDbms(ofNullable(capabilityParameters.get("dbms"))
-                        .map(s -> DbmsVendor.valueOf(s.toUpperCase(Locale.ROOT))).orElse(null))
-                .withIngressHostName(providedCapability.getSpec().getPreferredHostName().orElse(null))
+                .withDefault(providedCapability.getSpec().getResolutionScopePreference().contains(CapabilityScope.CLUSTER))
+                .withDbms(providedCapability.getSpec().getPreferredDbms().orElse(null))
+                .withIngressHostName(providedCapability.getSpec().getPreferredIngressHostName().orElse(null))
                 .withTlsSecretName(providedCapability.getSpec().getPreferredTlsSecretName().orElse(null))
                 .withAdminSecretName(
                         providedCapability.getSpec().getExternallyProvisionedService().map(ExternallyProvidedService::getAdminSecretName)
@@ -241,10 +241,10 @@ public class EntandoKeycloakServerController implements Runnable {
                         .valueOf(EntandoKeycloakHelper.determineStandardImage(resourceToProcess).name()))
                 .withProvisioningStrategy(
                         resourceToProcess.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY))
-                .withCapabilityRequirementScope(
+                .withResolutionScopePreference(
                         resourceToProcess.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE)
                 .withExternallyProvidedService(externalService)
-                .withPreferredHostName(resourceToProcess.getSpec().getIngressHostName().orElse(null))
+                .withPreferredIngressHostName(resourceToProcess.getSpec().getIngressHostName().orElse(null))
                 .withPreferredTlsSecretName(resourceToProcess.getSpec().getTlsSecretName().orElse(null))
                 .endSpec().build();
         if (!ResourceUtils.customResourceOwns(resourceToProcess, capabilityToSyncTo)) {
@@ -264,15 +264,19 @@ public class EntandoKeycloakServerController implements Runnable {
                 .map(n -> (Secret) k8sClient.loadStandardResource(SECRET_KIND, k8sClient.getNamespace(), n)).orElse(null);
     }
 
-    private void ensureHttpAccess(KeycloakDeploymentResult serviceDeploymentResult) {
+    private void ensureHttpAccess(KeycloakDeploymentResult serviceDeploymentResult) throws TimeoutException {
         //Give the operator access over http for cluster.local calls
-        k8sClient.executeOnPod(serviceDeploymentResult.getPod(), "server-container", 30,
+        final ExecutionResult result = k8sClient.executeOnPod(serviceDeploymentResult.getPod(), "server-container", 30,
                 "cd \"${KEYCLOAK_HOME}/bin\"",
                 "./kcadm.sh config credentials --server http://localhost:8080/auth --realm master "
                         + "--user  \"${KEYCLOAK_USER:-${SSO_ADMIN_USERNAME}}\" "
                         + "--password \"${KEYCLOAK_PASSWORD:-${SSO_ADMIN_PASSWORD}}\"",
                 "./kcadm.sh update realms/master -s sslRequired=NONE"
         );
+        if (result.hasFailed()) {
+            throw new EntandoControllerException("Could not disable Keycloak HTTPS requirement:" + String
+                    .join("\n", result.getOutputLines()));
+        }
     }
 
     private DatabaseConnectionInfo databaseServiceFor(EntandoKeycloakServer newEntandoKeycloakServer) throws TimeoutException {
@@ -286,18 +290,18 @@ public class EntandoKeycloakServerController implements Runnable {
                             .withCapability(StandardCapability.DBMS)
                             .withImplementation(StandardCapabilityImplementation
                                     .valueOf(dbmsVendor.name()))
-                            .withCapabilityRequirementScope(
-                                    newEntandoKeycloakServer.getSpec().isDefault() ? CapabilityScope.DEDICATED : CapabilityScope.NAMESPACE)
+                            .withResolutionScopePreference(
+                                    newEntandoKeycloakServer.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE)
                             .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
                             .build(), DATBASE_DEPLOYMENT_TIME);
             return new ProvidedDatabaseCapability(databaseCapability);
         }
     }
 
-    private void ensureKeycloakRealm(KeycloakConnectionConfig keycloakConnectionConfig) {
-        logger.severe(() -> format("Attempting to log into Keycloak at %s", keycloakConnectionConfig.determineBaseUrl()));
-        keycloakClient.login(keycloakConnectionConfig.determineBaseUrl(), keycloakConnectionConfig.getUsername(),
-                keycloakConnectionConfig.getPassword());
+    private void ensureKeycloakRealm(SsoConnectionInfo ssoConnectionInfo) {
+        logger.severe(() -> format("Attempting to log into Keycloak at %s", ssoConnectionInfo.determineBaseUrl()));
+        keycloakClient.login(ssoConnectionInfo.determineBaseUrl(), ssoConnectionInfo.getUsername(),
+                ssoConnectionInfo.getPassword());
         keycloakClient.ensureRealm(KeycloakName.ENTANDO_DEFAULT_KEYCLOAK_REALM);
     }
 

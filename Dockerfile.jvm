@@ -1,5 +1,4 @@
-#FROM entando/entando-k8s-operator-common:6.3.19
-FROM test
+FROM entando/entando-k8s-operator-common:0.0.0-SNAPSHOT-PR-60-34
 
 ARG VERSION
 LABEL name="Entando K8S Keycloak Controller" \
@@ -11,8 +10,8 @@ LABEL name="Entando K8S Keycloak Controller" \
                    Subsequent executions of this container against the same EntandoKeycloakServer will patch the existing \
                    deployment resources"
 ENV JAVA_OPTIONS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
-COPY --chown=1001 target/quarkus-app/lib/main/org.entando.*.jar /deployments/lib/main/
-COPY --chown=1001 target/quarkus-app/*.jar /deployments/
-COPY --chown=1001 target/quarkus-app/app/ /deployments/app/
-COPY --chown=1001 target/quarkus-app/quarkus/ /deployments/quarkus/
+COPY target/quarkus-app/lib/main/org.entando.*.jar /deployments/lib/main/
+COPY target/quarkus-app/*.jar /deployments/
+COPY target/quarkus-app/app/ /deployments/app/
+COPY target/quarkus-app/quarkus/ /deployments/quarkus/
 ENTRYPOINT [ "/deployments/run-java.sh" ]

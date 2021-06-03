@@ -33,11 +33,11 @@ import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.common.TrustStoreHelper;
 import org.entando.kubernetes.controller.spi.container.ConfigurableResourceContainer;
 import org.entando.kubernetes.controller.spi.container.DatabaseSchemaConnectionInfo;
-import org.entando.kubernetes.controller.spi.container.DbAware;
+import org.entando.kubernetes.controller.spi.container.DbAwareContainer;
 import org.entando.kubernetes.controller.spi.container.DockerImageInfo;
 import org.entando.kubernetes.controller.spi.container.IngressingContainer;
 import org.entando.kubernetes.controller.spi.container.ParameterizableContainer;
-import org.entando.kubernetes.controller.spi.container.PersistentVolumeAware;
+import org.entando.kubernetes.controller.spi.container.PersistentVolumeAwareContainer;
 import org.entando.kubernetes.controller.spi.container.SecretToMount;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
@@ -46,7 +46,7 @@ import org.entando.kubernetes.model.common.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
-public class KeycloakDeployableContainer implements IngressingContainer, DbAware, PersistentVolumeAware,
+public class KeycloakDeployableContainer implements IngressingContainer, DbAwareContainer, PersistentVolumeAwareContainer,
         ParameterizableContainer, ConfigurableResourceContainer {
 
     private static final String COMMUNITY_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
@@ -63,7 +63,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
         this.databaseServiceResult = databaseServiceResult;
         this.caCertSecret = caCertSecret;
         databaseSchemaConnectionInfos = Optional.ofNullable(databaseServiceResult)
-                .map(databaseServiceResult1 -> DbAware.buildDatabaseSchemaConnectionInfo(keycloakServer,
+                .map(databaseServiceResult1 -> DbAwareContainer.buildDatabaseSchemaConnectionInfo(keycloakServer,
                         databaseServiceResult, Collections.singletonList("db")))
                 .orElse(Collections.emptyList());
     }
@@ -74,8 +74,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public Optional<String> getStorageClass() {
-        return Optional.ofNullable(this.keycloakServer.getSpec().getStorageClass()
-                .orElse(PersistentVolumeAware.super.getStorageClass().orElse(null)));
+        return this.keycloakServer.getSpec().getStorageClass().or(PersistentVolumeAwareContainer.super::getStorageClass);
     }
 
     @Override

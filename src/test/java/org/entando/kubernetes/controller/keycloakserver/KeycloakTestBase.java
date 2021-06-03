@@ -16,11 +16,14 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
-import org.entando.kubernetes.controller.spi.capability.SerializingCapabilityProvider;
+import org.entando.kubernetes.controller.spi.client.KubernetesClientForControllers;
 import org.entando.kubernetes.controller.spi.command.DeploymentProcessor;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
@@ -29,6 +32,7 @@ import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigPro
 import org.entando.kubernetes.test.common.ControllerTestHelper;
 import org.entando.kubernetes.test.common.FluentTraversals;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mock;
 
 abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelper {
@@ -37,14 +41,9 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
 
     protected final SimpleK8SClientDouble client = new SimpleK8SClientDouble();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(5);
-    private CapabilityProvider capabilityProvider;
+    protected final ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
     @Mock
     private SimpleKeycloakClient keycloakClient;
-
-    public CapabilityProvider getCapabilityProvider() {
-        return new SerializingCapabilityProvider(getClient().entandoResources(), new AllureAttachingCommandStream(client,
-                getKeycloakClient().orElseThrow(IllegalStateException::new)));
-    }
 
     @Override
     public Optional<SimpleKeycloakClient> getKeycloakClient() {
@@ -59,6 +58,14 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     @Override
     public ScheduledExecutorService getScheduler() {
         return scheduledExecutorService;
+    }
+
+    @BeforeEach
+    void registerCrds() throws IOException {
+        registerCrd("crd/providedcapabilities.entando.org.crd.yaml");
+        registerCrd("crd/entandokeycloakservers.entando.org.crd.yaml");
+        registerCrd("testresources.test.org.crd.yaml");
+
     }
 
     @AfterEach
@@ -76,8 +83,9 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     }
 
     @Override
-    public Runnable createController(DeploymentProcessor deploymentProcessor) {
-        return new EntandoKeycloakServerController(getClient().entandoResources(), deploymentProcessor, getCapabilityProvider(),
-                getKeycloakClient().orElseThrow(IllegalStateException::new));
+    public Runnable createController(KubernetesClientForControllers kubernetesClientForControllers, DeploymentProcessor deploymentProcessor,
+            CapabilityProvider capabilityProvider) {
+        return new EntandoKeycloakServerController(kubernetesClientForControllers, deploymentProcessor, capabilityProvider, keycloakClient);
     }
+
 }
