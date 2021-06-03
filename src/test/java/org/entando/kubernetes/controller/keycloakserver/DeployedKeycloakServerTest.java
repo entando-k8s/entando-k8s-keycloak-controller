@@ -123,7 +123,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
             step("and the external base url that can be used to connect to this SSO service is available on the status of the "
                             + "ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getExternalBaseUrl())
-                            .isEqualTo("https://" + MY_KEYCLOAK + "-" + MY_NAMESPACE + ".entando.org/auth"));
+                            .isEqualTo("https://" + MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth"));
             step("and the name of the admin secret is available on the status of the ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getAdminSecretName()).contains("my-keycloak-admin-secret"));
         });
@@ -263,13 +263,13 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
             attachKubernetesResource("Ingress", ingress);
             step("With a hostname derived from the Capability name, namespace and the routing suffix", () ->
                     assertThat(ingress.getSpec().getRules().get(0).getHost())
-                            .isEqualTo(MY_KEYCLOAK + "-" + MY_NAMESPACE + ".entando.org"));
+                            .isEqualTo(MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX));
             step("And the standard path '/auth'", () ->
                     assertThat(ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).getPath())
                             .isEqualTo("/auth"));
             step("And with TLS configured to use the default TLS secret", () -> {
                 assertThat(ingress.getSpec().getTls().get(0).getHosts())
-                        .contains(MY_KEYCLOAK + "-" + MY_NAMESPACE + ".entando.org");
+                        .contains(MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX);
                 assertThat(ingress.getSpec().getTls().get(0).getSecretName()).isEqualTo(DEFAULT_TLS_SECRET);
             });
         });
@@ -284,7 +284,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
                     getCapabilityProvider().loadProvisioningResult(providedCapability));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
-            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-my-namespace.entando.org/auth");
+            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
                     .contains("http://my-keycloak-service.my-namespace.svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");

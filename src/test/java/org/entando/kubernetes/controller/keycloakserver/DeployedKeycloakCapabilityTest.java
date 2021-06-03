@@ -250,13 +250,13 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             attachKubernetesResource("Ingress", ingress);
             step("With a hostname derived from the Capability name, namespace and the routing suffix", () ->
                     assertThat(ingress.getSpec().getRules().get(0).getHost())
-                            .isEqualTo(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + ".entando.org"));
+                            .isEqualTo(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX));
             step("And the standard path '/auth'", () ->
                     assertThat(ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).getPath())
                             .isEqualTo("/auth"));
             step("And with TLS configured to use the default TLS secret", () -> {
                 assertThat(ingress.getSpec().getTls().get(0).getHosts())
-                        .contains(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + ".entando.org");
+                        .contains(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX);
                 assertThat(ingress.getSpec().getTls().get(0).getSecretName()).isEqualTo(DEFAULT_TLS_SECRET);
             });
         });
@@ -270,7 +270,8 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
                     getCapabilityProvider().loadProvisioningResult(providedCapability));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
-            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://default-sso-in-namespace-my-namespace.entando.org/auth");
+            assertThat(connectionConfig.getExternalBaseUrl())
+                    .isEqualTo("https://default-sso-in-namespace-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
                     .contains("http://default-sso-in-namespace-service.my-namespace.svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
@@ -383,13 +384,13 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             attachKubernetesResource("Ingress", ingress);
             step("With a hostname derived from the Capability name, namespace and the routing suffix", () ->
                     assertThat(ingress.getSpec().getRules().get(0).getHost())
-                            .isEqualTo(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + ".entando.org"));
+                            .isEqualTo(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX));
             step("And the standard path '/auth'", () ->
                     assertThat(ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).getPath())
                             .isEqualTo("/auth"));
             step("And with TLS configured to use the default TLS secret", () -> {
                 assertThat(ingress.getSpec().getTls().get(0).getHosts())
-                        .contains(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + ".entando.org");
+                        .contains(DEFAULT_SSO_IN_NAMESPACE + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX);
                 assertThat(ingress.getSpec().getTls().get(0).getSecretName()).isEqualTo(DEFAULT_TLS_SECRET);
             });
         });
@@ -403,7 +404,8 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
                     getCapabilityProvider().loadProvisioningResult(providedCapability));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
-            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://default-sso-in-namespace-my-namespace.entando.org/auth");
+            assertThat(connectionConfig.getExternalBaseUrl())
+                    .isEqualTo("https://default-sso-in-namespace-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
                     .contains("http://default-sso-in-namespace-service.my-namespace.svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");

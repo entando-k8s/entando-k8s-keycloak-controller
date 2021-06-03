@@ -16,6 +16,8 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.IOException;
@@ -36,6 +38,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mock;
 
 abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelper {
+
+    //NB!! if the builder pod has the ENTANDO_DEFAULT_ROUTING_SUFFIX set, the systemproperty doesn't make a difference.
+    public static final String THE_ROUTING_SUFFIX = ofNullable(
+            System.getenv(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX.name())).orElse("entando.org");
 
     public static final String DEFAULT_SSO_IN_NAMESPACE = "default-sso-in-namespace";
 
