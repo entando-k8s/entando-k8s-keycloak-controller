@@ -11,3 +11,4 @@ target/
 .settings/
 classes/
 /src/test/resources/crd/examples/
+allure-results

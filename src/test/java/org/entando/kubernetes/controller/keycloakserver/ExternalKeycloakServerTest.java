@@ -106,7 +106,7 @@ class ExternalKeycloakServerTest extends KeycloakTestBase {
         final ProvidedSsoCapability providedKeycloak = new ProvidedSsoCapability(
                 client.capabilities().buildCapabilityProvisioningResult(providedCapability));
         step("And the provided Keycloak connection info reflects the external service",
-                () -> assertThat(providedKeycloak.determineBaseUrl()).isEqualTo("https://kc.apps.serv.run/auth"));
+                () -> assertThat(providedKeycloak.getBaseUrlToUse()).isEqualTo("https://kc.apps.serv.run/auth"));
     }
 
     @Test

@@ -23,12 +23,9 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvisioningResult;
@@ -181,8 +178,6 @@ public class EntandoKeycloakServerController implements Runnable {
     }
 
     private EntandoKeycloakServer toKeycloakServer(ProvidedCapability providedCapability) {
-        final Map<String, String> capabilityParameters = ofNullable(providedCapability.getSpec().getCapabilityParameters()).orElse(
-                Collections.emptyMap());
         final EntandoKeycloakServer keycloakServerWithoutDefaults = new EntandoKeycloakServerBuilder(
                 Objects.requireNonNullElseGet(k8sClient
                                 .load(EntandoKeycloakServer.class, providedCapability.getMetadata().getNamespace(),
@@ -299,8 +294,8 @@ public class EntandoKeycloakServerController implements Runnable {
     }
 
     private void ensureKeycloakRealm(SsoConnectionInfo ssoConnectionInfo) {
-        logger.severe(() -> format("Attempting to log into Keycloak at %s", ssoConnectionInfo.determineBaseUrl()));
-        keycloakClient.login(ssoConnectionInfo.determineBaseUrl(), ssoConnectionInfo.getUsername(),
+        logger.severe(() -> format("Attempting to log into Keycloak at %s", ssoConnectionInfo.getBaseUrlToUse()));
+        keycloakClient.login(ssoConnectionInfo.getBaseUrlToUse(), ssoConnectionInfo.getUsername(),
                 ssoConnectionInfo.getPassword());
         keycloakClient.ensureRealm(KeycloakName.ENTANDO_DEFAULT_KEYCLOAK_REALM);
     }

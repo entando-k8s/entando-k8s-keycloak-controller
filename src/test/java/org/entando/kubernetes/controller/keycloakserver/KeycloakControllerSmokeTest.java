@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.client.Watcher.Action;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.concurrent.TimeoutException;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
@@ -27,7 +28,6 @@ import org.entando.kubernetes.test.e2etest.ControllerExecutor;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
-import org.postgresql.util.Base64;
 
 @Tags({@Tag("smoke")})
 @Feature("As an Entando Operator users, I want to use a Docker container to process an EntandoKeycloakServer so that I don't need to "
@@ -83,6 +83,6 @@ class KeycloakControllerSmokeTest implements FluentIntegrationTesting {
     }
 
     private String decode(Secret secret, String usernameKey) {
-        return new String(Base64.decode(secret.getData().get(usernameKey)), StandardCharsets.UTF_8);
+        return new String(Base64.getDecoder().decode(secret.getData().get(usernameKey)), StandardCharsets.UTF_8);
     }
 }

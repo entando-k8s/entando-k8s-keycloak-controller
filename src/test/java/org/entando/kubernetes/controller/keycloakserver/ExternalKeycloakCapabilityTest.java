@@ -116,7 +116,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
         step("And the provided Keycloak connection info reflects the external service", () -> {
 
             step("using the 'Use External' provisioningStrategy",
-                    () -> assertThat(providedKeycloak.determineBaseUrl()).isEqualTo("https://kc.apps.serv.run:8080/auth"));
+                    () -> assertThat(providedKeycloak.getBaseUrlToUse()).isEqualTo("https://kc.apps.serv.run:8080/auth"));
         });
     }
 
