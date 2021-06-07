@@ -18,6 +18,8 @@ package org.entando.kubernetes.controller.keycloakserver;
 
 import static io.qameta.allure.Allure.step;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
@@ -36,9 +38,16 @@ import io.qameta.allure.Feature;
 import io.qameta.allure.Issue;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import org.entando.kubernetes.controller.spi.client.ExecutionResult;
 import org.entando.kubernetes.controller.spi.command.SerializationHelper;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
+import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
@@ -46,6 +55,7 @@ import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
 import org.entando.kubernetes.controller.spi.container.SsoConnectionInfo;
+import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.CapabilityScope;
@@ -53,16 +63,22 @@ import org.entando.kubernetes.model.capability.ProvidedCapability;
 import org.entando.kubernetes.model.capability.StandardCapability;
 import org.entando.kubernetes.model.capability.StandardCapabilityImplementation;
 import org.entando.kubernetes.model.common.DbmsVendor;
+import org.entando.kubernetes.model.common.EntandoDeploymentPhase;
 import org.entando.kubernetes.model.common.ExposedServerStatus;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
+import org.entando.kubernetes.test.common.CapabilityStatusEmulator;
+import org.entando.kubernetes.test.common.LogInterceptor;
 import org.entando.kubernetes.test.common.SourceLink;
+import org.entando.kubernetes.test.common.ValueHolder;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.stubbing.Answer;
+import picocli.CommandLine;
 
 @ExtendWith(MockitoExtension.class)
 @Tags({@Tag("component"), @Tag("in-process"), @Tag("allure")})
@@ -71,7 +87,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @Issue("ENG-2284")
 @SourceLink("DeployedKeycloakServerTest.java")
 @SuppressWarnings({"java:S5961"})//because this test is intended to generate documentation and should read like the generated document
-class DeployedKeycloakServerTest extends KeycloakTestBase {
+class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityStatusEmulator<SimpleK8SClientDouble> {
 
     public static final String MY_KEYCLOAK = "my-keycloak";
 
@@ -88,7 +104,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
         theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("And there is a controller to process requests for the DBMS capability",
                 () -> doAnswer(withADatabaseCapabilityStatus(DbmsVendor.POSTGRESQL, "my_db")).when(client.capabilities())
-                        .createAndWaitForCapability(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
+                        .waitForCapabilityCompletion(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
         step("When I create an EntandoKeycloakServer with minimal configuration",
                 () -> runControllerAgainstCustomResource(new EntandoKeycloakServerBuilder()
                         .withNewMetadata()
@@ -313,7 +329,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
         step("And there is a controller to process requests for the DBMS capability",
                 () -> doAnswer(withADatabaseCapabilityStatus(DbmsVendor.MYSQL, "my_db")).when(client.capabilities())
-                        .createAndWaitForCapability(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
+                        .waitForCapabilityCompletion(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
 
         theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("When I create an EntandoKeyCloakServer with preferred hostname, TLS secret, DBMS and storageClass specified",
@@ -428,6 +444,128 @@ class DeployedKeycloakServerTest extends KeycloakTestBase {
                             "/etc/entando/certs/my-ca-certs/cert2.crt"));
         });
         attachKubernetesState();
+    }
+
+    @Test
+    @Description("Should fail if the Database capability could not be provisioned")
+    void shouldFailIfTheDatabaseProvisioningFailed() {
+        ValueHolder<EntandoKeycloakServer> entandoKeycloakServerHolder = new ValueHolder<>();
+        step("Given that I have an EntandoKeycloakServer that requires the PostgreSQL Database Capability", () -> {
+            final EntandoKeycloakServer entandoKeycloakServer = getClient().entandoResources()
+                    .createOrPatchEntandoResource(new EntandoKeycloakServerBuilder()
+                            .withNewMetadata()
+                            .withName(MY_KEYCLOAK)
+                            .withNamespace(MY_NAMESPACE)
+                            .endMetadata()
+                            .withNewSpec()
+                            .withDbms(DbmsVendor.POSTGRESQL)
+                            .endSpec()
+                            .build());
+            attachKubernetesResource("EntandoKeycloakServer", entandoKeycloakServer);
+            entandoKeycloakServerHolder.set(entandoKeycloakServer);
+        });
+        step("But the controller to process requests for the DBMS capability provides a capability in 'FAILED' state",
+                () -> doAnswer(withFailedInternalServerStatus(NameUtils.MAIN_QUALIFIER, new NullPointerException()))
+                        .when(client.capabilities())
+                        .waitForCapabilityCompletion(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
+        ValueHolder<Throwable> throwable = new ValueHolder<>();
+        step("When I create an EntandoKeycloakServer",
+                () -> throwable.set(catchThrowable(() -> runControllerAgainstCustomResource(entandoKeycloakServerHolder.get()))));
+        final EntandoKeycloakServer entandoKeycloakServer = client.entandoResources()
+                .load(EntandoKeycloakServer.class, MY_NAMESPACE, MY_KEYCLOAK);
+        step("Then the EntandoKeycloakServer deployment failed", () -> {
+            assertThat(entandoKeycloakServer.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
+            attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
+        });
+        step("And the 'main' ServerStatus carries the actual failure", () -> {
+            assertThat(
+                    entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getEntandoControllerFailure()
+                            .getDetailMessage())
+                    .contains("Could not prepare a database for SSO my-namespace/my-keycloak");
+            attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
+        });
+        step("And this exception was logged as SEVERE", () -> {
+            assertThat(LogInterceptor.getLogRecords())
+                    .anyMatch(r -> r.getMessage().contains("Could not prepare a database for SSO my-namespace/my-keycloak"));
+            final LogRecord logRecord = LogInterceptor.getLogRecords().stream()
+                    .filter(r -> r.getMessage().contains("Could not prepare a database for SSO my-namespace/my-keycloak"))
+                    .findFirst()
+                    .get();
+            assertThat(logRecord.getLevel()).isEqualTo(Level.SEVERE);
+            assertThat(logRecord.getThrown()).isInstanceOf(EntandoControllerException.class);
+        });
+        step("But a PicoCLI exception was thrown at the top level", () -> {
+            assertThat(throwable.get()).isInstanceOf(CommandLine.ExecutionException.class);
+        });
+        attachKubernetesState();
+    }
+
+    @Test
+    @Description("Should fail if the command to disable the Keycloak HTTPS requirement failed")
+    void shouldFailIfTheDisableHttpsCommandFailed() throws TimeoutException {
+        ValueHolder<EntandoKeycloakServer> entandoKeycloakServerHolder = new ValueHolder<>();
+        step("Given that I have an EntandoKeycloakServer that requires the PostgreSQL Database Capability", () -> {
+            final EntandoKeycloakServer entandoKeycloakServer = getClient().entandoResources()
+                    .createOrPatchEntandoResource(new EntandoKeycloakServerBuilder()
+                            .withNewMetadata()
+                            .withName(MY_KEYCLOAK)
+                            .withNamespace(MY_NAMESPACE)
+                            .endMetadata()
+                            .withNewSpec()
+                            .withDbms(DbmsVendor.EMBEDDED)
+                            .endSpec()
+                            .build());
+            attachKubernetesResource("EntandoKeycloakServer", entandoKeycloakServer);
+            entandoKeycloakServerHolder.set(entandoKeycloakServer);
+        });
+        step("But the execution of the command to disable the Keycloak HTTPS requirement fails with the message: 'Execution failed!'",
+                () -> doAnswer(withFailedExecutionResult()))
+                .when(client.entandoResources())
+                .executeOnPod(any(), any(), anyInt(), any());
+        ValueHolder<Throwable> throwable = new ValueHolder<>();
+        step("When I create an EntandoKeycloakServer",
+                () -> throwable.set(catchThrowable(() -> runControllerAgainstCustomResource(entandoKeycloakServerHolder.get()))));
+        final EntandoKeycloakServer entandoKeycloakServer = client.entandoResources()
+                .load(EntandoKeycloakServer.class, MY_NAMESPACE, MY_KEYCLOAK);
+        step("Then the EntandoKeycloakServer deployment failed", () -> {
+            assertThat(entandoKeycloakServer.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
+            attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
+        });
+        step("And the 'main' ServerStatus carries the actual failure", () -> {
+            assertThat(
+                    entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getEntandoControllerFailure()
+                            .getDetailMessage())
+                    .contains("Could not disable Keycloak HTTPS requirement:Execution failed!");
+            attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
+        });
+        step("And this exception was logged as SEVERE", () -> {
+            assertThat(LogInterceptor.getLogRecords())
+                    .anyMatch(r -> r.getMessage().contains("Could not disable Keycloak HTTPS requirement:Execution failed!"));
+            final LogRecord logRecord = LogInterceptor.getLogRecords().stream()
+                    .filter(r -> r.getMessage().contains("Could not disable Keycloak HTTPS requirement:Execution failed!"))
+                    .findFirst()
+                    .get();
+            assertThat(logRecord.getLevel()).isEqualTo(Level.SEVERE);
+            assertThat(logRecord.getThrown()).isInstanceOf(EntandoControllerException.class);
+        });
+        step("But a PicoCLI exception was thrown at the top level", () -> {
+            assertThat(throwable.get()).isInstanceOf(CommandLine.ExecutionException.class);
+        });
+        attachKubernetesState();
+    }
+
+    private Answer<ExecutionResult> withFailedExecutionResult() {
+        return invocationOnMock -> new ExecutionResult(null) {
+            @Override
+            public int getCode() {
+                return -1;
+            }
+
+            @Override
+            public List<String> getOutputLines() {
+                return Collections.singletonList("Execution failed!");
+            }
+        };
     }
 
 }

@@ -33,6 +33,7 @@ import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientD
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.test.common.ControllerTestHelper;
 import org.entando.kubernetes.test.common.FluentTraversals;
+import org.entando.kubernetes.test.common.LogInterceptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mock;
@@ -71,7 +72,7 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
         registerCrd("crd/providedcapabilities.entando.org.crd.yaml");
         registerCrd("crd/entandokeycloakservers.entando.org.crd.yaml");
         registerCrd("testresources.test.org.crd.yaml");
-
+        LogInterceptor.listenToClass(EntandoKeycloakServerController.class);
     }
 
     @AfterEach
@@ -86,6 +87,7 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
                 .remove(EntandoOperatorSpiConfigProperty.ENTANDO_K8S_OPERATOR_DEFAULT_CLUSTERED_STORAGE_CLASS.getJvmSystemProperty());
         System.getProperties()
                 .remove(EntandoOperatorSpiConfigProperty.ENTANDO_K8S_OPERATOR_DEFAULT_NON_CLUSTERED_STORAGE_CLASS.getJvmSystemProperty());
+        LogInterceptor.reset();
     }
 
     @Override

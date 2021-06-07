@@ -16,28 +16,26 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
-import java.net.MalformedURLException;
+import static org.entando.kubernetes.controller.spi.common.ExceptionUtils.ioSafe;
+
 import java.net.URL;
 import org.entando.kubernetes.controller.spi.deployable.ExternalService;
 
 public class ExternalKeycloakService implements ExternalService {
 
     private Integer port;
-    private final String host;
-    private final String path;
+    private String host;
+    private String path;
 
     public ExternalKeycloakService(String frontEndUrl) {
-        try {
-            final URL url = new URL(frontEndUrl);
-            this.port = url.getPort();
-            if (port == -1) {
-                port = url.getDefaultPort();
-            }
-            this.host = url.getHost();
-            this.path = url.getPath();
-        } catch (MalformedURLException e) {
-            throw new IllegalStateException(e);
+        URL url = ioSafe(() -> new URL(frontEndUrl));
+        this.port = url.getPort();
+        if (port == -1) {
+            port = url.getDefaultPort();
         }
+        this.host = url.getHost();
+        this.path = url.getPath();
+
     }
 
     @Override

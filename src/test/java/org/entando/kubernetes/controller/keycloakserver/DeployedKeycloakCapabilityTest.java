@@ -83,7 +83,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
         theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("And there is a controller to process requests for the DBMS capability",
                 () -> doAnswer(withADatabaseCapabilityStatus(DbmsVendor.POSTGRESQL, "my_db")).when(client.capabilities())
-                        .createAndWaitForCapability(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
+                        .waitForCapabilityCompletion(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
 
         step("When I request an SSO Capability with no additional parameters",
                 () -> runControllerAgainstCapabilityRequirement(newResourceRequiringCapability(), new CapabilityRequirementBuilder()
@@ -434,7 +434,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
                 () -> attachEnvironmentVariable(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX, "entando.org"));
         step("And there is a controller to process requests for the DBMS capability",
                 () -> doAnswer(withADatabaseCapabilityStatus(DbmsVendor.MYSQL, "my_db")).when(client.capabilities())
-                        .createAndWaitForCapability(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
+                        .waitForCapabilityCompletion(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
         theDefaultTlsSecretWasCreatedAndConfiguredAsDefault();
         step("When I request a dedicated SSO Capability with the preferred hostname, TLS secret and DBMS specified",
                 () -> runControllerAgainstCapabilityRequirement(newResourceRequiringCapability(), new CapabilityRequirementBuilder()

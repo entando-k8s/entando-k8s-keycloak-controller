@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
@@ -119,6 +120,7 @@ public class EntandoKeycloakServerController implements Runnable {
             keycloakServer = k8sClient.deploymentEnded(keycloakServer);
             providedCapability = k8sClient.deploymentEnded(providedCapability);
         } catch (Exception e) {
+            logger.log(Level.SEVERE, e.getMessage(), e);
             keycloakServer = k8sClient.deploymentFailed(keycloakServer, e, NameUtils.MAIN_QUALIFIER);
             providedCapability = k8sClient.deploymentFailed(providedCapability, e, NameUtils.MAIN_QUALIFIER);
         }
@@ -293,7 +295,11 @@ public class EntandoKeycloakServerController implements Runnable {
                             .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
                             .build(), DATBASE_DEPLOYMENT_TIME);
             databaseCapability.getControllerFailure().ifPresent(f -> {
-                throw new EntandoControllerException("Could not prepare a database for SSO:\n" + f.getDetailMessage());
+                throw new EntandoControllerException(databaseCapability.getProvidedCapability(),
+                        format("Could not prepare a database for SSO %s/%s:\n",
+                                newEntandoKeycloakServer.getMetadata().getNamespace(),
+                                newEntandoKeycloakServer.getMetadata().getName(),
+                                f.getDetailMessage()));
             });
             return new ProvidedDatabaseCapability(databaseCapability);
         }
