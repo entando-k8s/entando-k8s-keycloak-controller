@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -199,6 +200,7 @@ public class EntandoKeycloakServerController implements Runnable {
                 .withDefault(providedCapability.getSpec().getResolutionScopePreference().contains(CapabilityScope.CLUSTER))
                 .withDbms(providedCapability.getSpec().getPreferredDbms().orElse(null))
                 .withIngressHostName(providedCapability.getSpec().getPreferredIngressHostName().orElse(null))
+                .withDefaultRealm(providedCapability.getSpec().getCapabilityParameters().get(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER))
                 .withTlsSecretName(providedCapability.getSpec().getPreferredTlsSecretName().orElse(null))
                 .withAdminSecretName(
                         providedCapability.getSpec().getExternallyProvisionedService().map(ExternallyProvidedService::getAdminSecretName)
@@ -246,6 +248,9 @@ public class EntandoKeycloakServerController implements Runnable {
                 .withExternallyProvidedService(externalService)
                 .withPreferredIngressHostName(resourceToProcess.getSpec().getIngressHostName().orElse(null))
                 .withPreferredTlsSecretName(resourceToProcess.getSpec().getTlsSecretName().orElse(null))
+                .addAllToCapabilityParameters(resourceToProcess.getSpec().getDefaultRealm()
+                        .map(r -> Collections.singletonMap(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER, r))
+                        .orElse(Collections.emptyMap()))
                 .endSpec().build();
         if (!ResourceUtils.customResourceOwns(resourceToProcess, capabilityToSyncTo)) {
             //If we are here, it means one of two things:

@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
+import java.util.Map;
 import org.entando.kubernetes.controller.spi.client.SerializedEntandoResource;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -80,6 +81,7 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                         .withAdminSecretName("my-existing-sso-admin-secret")
                         .endExternallyProvidedService()
                         .withSpecifiedCapability(new ResourceReference(MY_NAMESPACE, SPECIFIED_SSO))
+                        .addAllToCapabilityParameters(Map.of(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER, "my-realm"))
                         .build()));
         final ProvidedCapability providedCapability = client.entandoResources()
                 .load(ProvidedCapability.class, MY_NAMESPACE, SPECIFIED_SSO);
@@ -115,6 +117,8 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
 
             step("using the 'Use External' provisioningStrategy",
                     () -> assertThat(providedKeycloak.getBaseUrlToUse()).isEqualTo("https://kc.apps.serv.run:8080/auth"));
+            step("and the default realm 'my-realm'",
+                    () -> assertThat(providedKeycloak.getDefaultRealm()).contains("my-realm"));
         });
     }
 
