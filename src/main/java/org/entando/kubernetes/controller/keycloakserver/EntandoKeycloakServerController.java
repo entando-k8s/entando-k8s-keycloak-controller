@@ -301,7 +301,7 @@ public class EntandoKeycloakServerController implements Runnable {
                             .build(), DATBASE_DEPLOYMENT_TIME);
             databaseCapability.getControllerFailure().ifPresent(f -> {
                 throw new EntandoControllerException(databaseCapability.getProvidedCapability(),
-                        format("Could not prepare a database for SSO %s/%s:\n",
+                        format("Could not prepare a database for SSO %s/%s:%n%s",
                                 newEntandoKeycloakServer.getMetadata().getNamespace(),
                                 newEntandoKeycloakServer.getMetadata().getName(),
                                 f.getDetailMessage()));
