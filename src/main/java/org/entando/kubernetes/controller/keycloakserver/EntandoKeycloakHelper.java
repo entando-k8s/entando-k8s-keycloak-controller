@@ -64,7 +64,14 @@ public class EntandoKeycloakHelper {
         final Map<String, String> capabilityParameters = ofNullable(providedCapability.getSpec().getCapabilityParameters())
                 .orElse(Collections.emptyMap());
         final String port = s.getPort().map(p -> ":" + p).orElse("");
-        return ofNullable(capabilityParameters.get("frontEndUrl")).orElse("https://" + s.getHost() + port + "/auth");
+        String protocol;
+        if (s.getPort().map(p -> p == 80).orElse(false)) {
+            protocol = "http";
+        } else {
+            protocol = "https";
+        }
+        return ofNullable(capabilityParameters.get("frontEndUrl")).orElse(protocol + "://" + s.getHost() + port + "/auth");
     }
-
 }
+
+
