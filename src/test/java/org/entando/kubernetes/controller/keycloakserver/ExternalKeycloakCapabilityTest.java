@@ -23,7 +23,9 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
+import java.util.Collection;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.entando.kubernetes.controller.spi.client.SerializedEntandoResource;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
@@ -125,9 +127,14 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     () -> assertThat(providedKeycloak.getDefaultRealm()).contains("my-realm"));
         });
         step("And no DBMS Capability was requested", () -> {
-            assertThat(getClient().getNamespaces().get(entandoKeycloakServer.getMetadata().getNamespace())
-                    .getCustomResources(ProvidedCapability.class.getSimpleName()).values()).noneMatch(
-                    resource -> ((ProvidedCapability) resource).getSpec().getCapability() == StandardCapability.DBMS);
+            final Collection<ProvidedCapability> providedCapabilities = getClient().getNamespaces()
+                    .get(entandoKeycloakServer.getMetadata().getNamespace())
+                    .getCustomResources(ProvidedCapability.class.getSimpleName())
+                    .values()
+                    .stream()
+                    .map(ProvidedCapability.class::cast)
+                    .collect(Collectors.toList());
+            assertThat(providedCapabilities).noneMatch(resource -> resource.getSpec().getCapability() == StandardCapability.DBMS);
         });
     }
 
