@@ -41,6 +41,7 @@ import org.entando.kubernetes.controller.spi.container.PersistentVolumeAwareCont
 import org.entando.kubernetes.controller.spi.container.SecretToMount;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
 import org.entando.kubernetes.controller.support.common.FluentTernary;
+import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.common.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -153,33 +154,36 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     @Override
     public List<EnvVar> getDatabaseConnectionVariables() {
         List<EnvVar> vars = new ArrayList<>();
-        if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
-            vars.add(new EnvVar("DB_VENDOR", "h2", null));
-        } else {
-            DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo = databaseSchemaConnectionInfos.get(0);
-            if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
-                String driverName = databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor().getName();
-                vars.add(new EnvVar(format("DB_%s_SERVICE_HOST", driverName.toUpperCase(Locale.ROOT)),
-                        databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(), null));
-                vars.add(new EnvVar(format("DB_%s_SERVICE_PORT", driverName.toUpperCase(Locale.ROOT)),
-                        databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
-                vars.add(new EnvVar("DB_SERVICE_PREFIX_MAPPING", format("db-%s=DB", driverName), null));
-                vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaConnectionInfo.getUsernameRef()));
+        if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer) == CapabilityProvisioningStrategy.DEPLOY_DIRECTLY) {
+            if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
+                vars.add(new EnvVar("DB_VENDOR", "h2", null));
             } else {
+                DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo = databaseSchemaConnectionInfos.get(0);
+                if (determineStandardKeycloakImage() == StandardKeycloakImage.REDHAT_SSO) {
+                    String driverName = databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor().getName();
+                    vars.add(new EnvVar(format("DB_%s_SERVICE_HOST", driverName.toUpperCase(Locale.ROOT)),
+                            databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(), null));
+                    vars.add(new EnvVar(format("DB_%s_SERVICE_PORT", driverName.toUpperCase(Locale.ROOT)),
+                            databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
+                    vars.add(new EnvVar("DB_SERVICE_PREFIX_MAPPING", format("db-%s=DB", driverName), null));
+                    vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaConnectionInfo.getUsernameRef()));
+                } else {
 
-                vars.add(new EnvVar("DB_ADDR", databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(), null));
-                vars.add(new EnvVar("DB_PORT", databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
-                vars.add(new EnvVar("DB_SCHEMA", databaseSchemaConnectionInfo.getSchemaName(), null));
-                vars.add(new EnvVar("DB_USER", null, databaseSchemaConnectionInfo.getUsernameRef()));
+                    vars.add(new EnvVar("DB_ADDR", databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(),
+                            null));
+                    vars.add(new EnvVar("DB_PORT", databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
+                    vars.add(new EnvVar("DB_SCHEMA", databaseSchemaConnectionInfo.getSchemaName(), null));
+                    vars.add(new EnvVar("DB_USER", null, databaseSchemaConnectionInfo.getUsernameRef()));
+                }
+                vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaConnectionInfo), null));
+                vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabaseServiceResult().getDatabaseName(), null));
+                vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaConnectionInfo.getPasswordRef()));
+                vars.add(new EnvVar("JDBC_PARAMS",
+                        databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
+                                .collect(
+                                        Collectors.joining("&")), null));
+
             }
-            vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaConnectionInfo), null));
-            vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabaseServiceResult().getDatabaseName(), null));
-            vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaConnectionInfo.getPasswordRef()));
-            vars.add(new EnvVar("JDBC_PARAMS",
-                    databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
-                            .collect(
-                                    Collectors.joining("&")), null));
-
         }
         return vars;
     }

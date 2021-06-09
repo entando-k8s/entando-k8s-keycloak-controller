@@ -62,13 +62,12 @@ public class KeycloakDeployable
 
     @Override
     public boolean isIngressRequired() {
-        return keycloakServer.getSpec().getProvisioningStrategy().map(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY::equals).orElse(true);
+        return EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer) == CapabilityProvisioningStrategy.DEPLOY_DIRECTLY;
     }
 
     @Override
     public Optional<ExternalService> getExternalService() {
-        if (keycloakServer.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
-                == CapabilityProvisioningStrategy.USE_EXTERNAL) {
+        if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer) == CapabilityProvisioningStrategy.USE_EXTERNAL) {
             final String frontEndUrl = keycloakServer.getSpec().getFrontEndUrl().orElseThrow(IllegalStateException::new);
             return Optional.of(new ExternalKeycloakService(frontEndUrl));
         }

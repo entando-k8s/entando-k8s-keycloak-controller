@@ -113,7 +113,7 @@ public class EntandoKeycloakServerController implements Runnable {
             keycloakServer = k8sClient.updateStatus(keycloakServer, result.getStatus());
             providedCapability = k8sClient.updateStatus(providedCapability, result.getStatus());
             if (!result.getStatus().hasFailed()) {
-                if (keycloakServer.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
+                if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer)
                         != CapabilityProvisioningStrategy.USE_EXTERNAL) {
                     ensureHttpAccess(result);
                 }
@@ -196,8 +196,7 @@ public class EntandoKeycloakServerController implements Runnable {
                 .withName(providedCapability.getMetadata().getName())
                 .endMetadata()
                 .editSpec()
-                .withProvisioningStrategy(
-                        providedCapability.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY))
+                .withProvisioningStrategy(EntandoKeycloakHelper.provisioningStrategyOf(providedCapability))
                 .withDefault(providedCapability.getSpec().getResolutionScopePreference().contains(CapabilityScope.CLUSTER))
                 .withDbms(providedCapability.getSpec().getPreferredDbms().orElse(null))
                 .withIngressHostName(providedCapability.getSpec().getPreferredIngressHostName().orElse(null))
@@ -242,8 +241,7 @@ public class EntandoKeycloakServerController implements Runnable {
                 .withCapability(StandardCapability.SSO)
                 .withImplementation(StandardCapabilityImplementation
                         .valueOf(EntandoKeycloakHelper.determineStandardImage(resourceToProcess).name()))
-                .withProvisioningStrategy(
-                        resourceToProcess.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY))
+                .withProvisioningStrategy(EntandoKeycloakHelper.provisioningStrategyOf(resourceToProcess))
                 .withResolutionScopePreference(
                         resourceToProcess.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE)
                 .withExternallyProvidedService(externalService)
@@ -288,7 +286,8 @@ public class EntandoKeycloakServerController implements Runnable {
     private DatabaseConnectionInfo databaseServiceFor(EntandoKeycloakServer newEntandoKeycloakServer) throws TimeoutException {
         // Create database for Keycloak
         final DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(newEntandoKeycloakServer);
-        if (dbmsVendor == DbmsVendor.EMBEDDED) {
+        if (dbmsVendor == DbmsVendor.EMBEDDED || EntandoKeycloakHelper.provisioningStrategyOf(newEntandoKeycloakServer)
+                != CapabilityProvisioningStrategy.DEPLOY_DIRECTLY) {
             return null;
         } else {
             final CapabilityProvisioningResult databaseCapability = this.capabilityProvider

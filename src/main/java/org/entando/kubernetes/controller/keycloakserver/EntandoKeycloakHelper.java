@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
+import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.ExternallyProvidedService;
 import org.entando.kubernetes.model.capability.ProvidedCapability;
 import org.entando.kubernetes.model.common.DbmsVendor;
@@ -71,6 +72,14 @@ public class EntandoKeycloakHelper {
             protocol = "https";
         }
         return ofNullable(capabilityParameters.get("frontEndUrl")).orElse(protocol + "://" + s.getHost() + port + "/auth");
+    }
+
+    public static CapabilityProvisioningStrategy provisioningStrategyOf(EntandoKeycloakServer e) {
+        return e.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY);
+    }
+
+    public static CapabilityProvisioningStrategy provisioningStrategyOf(ProvidedCapability e) {
+        return e.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY);
     }
 }
 

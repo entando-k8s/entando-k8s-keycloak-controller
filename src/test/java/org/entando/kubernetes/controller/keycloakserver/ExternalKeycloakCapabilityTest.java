@@ -25,6 +25,7 @@ import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import java.util.Map;
 import org.entando.kubernetes.controller.spi.client.SerializedEntandoResource;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
@@ -57,7 +58,10 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     @Test
     @Description("Should link to external SSO service when all required fields are provided")
     void shouldLinkToExternalService() {
-        step("Given I have configured a secret with admin credentials to a remote Keycloak server", () -> {
+        step("Given I have configured the operator run in Red Hat Compliance mode", () -> {
+            attachEnvironmentVariable(EntandoOperatorSpiConfigProperty.ENTANDO_K8S_OPERATOR_COMPLIANCE_MODE, "redhat");
+        });
+        step("And I have configured a secret with admin credentials to a remote Keycloak server", () -> {
             final Secret adminSecret = new SecretBuilder()
                     .withNewMetadata()
                     .withNamespace(MY_NAMESPACE)
@@ -119,6 +123,11 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     () -> assertThat(providedKeycloak.getBaseUrlToUse()).isEqualTo("https://kc.apps.serv.run:8080/auth"));
             step("and the default realm 'my-realm'",
                     () -> assertThat(providedKeycloak.getDefaultRealm()).contains("my-realm"));
+        });
+        step("And no DBMS Capability was requested", () -> {
+            assertThat(getClient().getNamespaces().get(entandoKeycloakServer.getMetadata().getNamespace())
+                    .getCustomResources(ProvidedCapability.class.getSimpleName()).values()).noneMatch(
+                    resource -> ((ProvidedCapability) resource).getSpec().getCapability() == StandardCapability.DBMS);
         });
     }
 
