@@ -63,7 +63,7 @@ public class EntandoKeycloakHelper {
                 .orElseThrow(IllegalArgumentException::new);
         final Map<String, String> capabilityParameters = ofNullable(providedCapability.getSpec().getCapabilityParameters())
                 .orElse(Collections.emptyMap());
-        final String port = s.getPort().map(p -> ":" + p).orElse("");
+        final String port = s.getPort().filter(p -> !(p == 80 || p == 443)).map(p -> ":" + p).orElse("");
         String protocol;
         if (s.getPort().map(p -> p == 80).orElse(false)) {
             protocol = "http";

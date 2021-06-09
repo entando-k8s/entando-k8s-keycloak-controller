@@ -123,6 +123,74 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
     }
 
     @Test
+    @Description("Should omit the standard ports in the frontEndUrl when linking an external SSO service")
+    void shouldLinkToExternalServiceOnPort443() {
+        step("Given I have configured a secret with admin credentials to a remote Keycloak server", () -> {
+            final Secret adminSecret = new SecretBuilder()
+                    .withNewMetadata()
+                    .withNamespace(MY_NAMESPACE)
+                    .withName("my-existing-sso-admin-secret")
+                    .endMetadata()
+                    .addToData(SecretUtils.USERNAME_KEY, "someuser")
+                    .addToData(SecretUtils.PASSSWORD_KEY, "somepassword")
+                    .build();
+            getClient().secrets().createSecretIfAbsent(newResourceRequiringCapability(), adminSecret);
+            attachKubernetesResource("Existing Admin Secret", adminSecret);
+        });
+        step("When I request an SSO Capability  with its name and namespace explicitly specified, provisioned externally",
+                () -> runControllerAgainstCapabilityRequirement(newResourceRequiringCapability(), new CapabilityRequirementBuilder()
+                        .withCapability(StandardCapability.SSO)
+                        .withProvisioningStrategy(CapabilityProvisioningStrategy.USE_EXTERNAL)
+                        .withResolutionScopePreference(CapabilityScope.SPECIFIED)
+                        .withNewExternallyProvidedService()
+                        .withPath("/auth")
+                        .withHost("kc.apps.serv.run")
+                        .withPort(443)
+                        .withAdminSecretName("my-existing-sso-admin-secret")
+                        .endExternallyProvidedService()
+                        .withSpecifiedCapability(new ResourceReference(MY_NAMESPACE, SPECIFIED_SSO))
+                        .addAllToCapabilityParameters(Map.of(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER, "my-realm"))
+                        .build()));
+        final ProvidedCapability providedCapability = client.entandoResources()
+                .load(ProvidedCapability.class, MY_NAMESPACE, SPECIFIED_SSO);
+        final EntandoKeycloakServer entandoKeycloakServer = client.entandoResources()
+                .load(EntandoKeycloakServer.class, MY_NAMESPACE, SPECIFIED_SSO);
+        step("Then an EntandoKeycloakServer was provisioned:", () -> {
+            step("with the name explicitly specified", () -> {
+                assertThat(entandoKeycloakServer.getMetadata().getName()).isEqualTo(SPECIFIED_SSO);
+                assertThat(providedCapability.getMetadata().getName()).isEqualTo(SPECIFIED_SSO);
+                assertThat(providedCapability.getSpec().getSpecifiedCapability().get().getName()).isEqualTo(SPECIFIED_SSO);
+            });
+
+            step("using the 'Use External' provisioningStrategy",
+                    () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).contains(
+                            CapabilityProvisioningStrategy.USE_EXTERNAL));
+            step("and it is owned by the ProvidedCapability to ensure only changes from the ProvidedCapability will change the "
+                            + "implementing Kubernetes resources",
+                    () -> assertThat(ResourceUtils.customResourceOwns(providedCapability, entandoKeycloakServer)));
+            step("and its frontEndUrl property reflects the connection info provided in the CapabilityRequirement",
+                    () -> assertThat(entandoKeycloakServer.getSpec().getFrontEndUrl()).contains("https://kc.apps.serv.run/auth"));
+            step("and the ProvidedCapability's status carries the name of the correct admin secret to use",
+                    () -> assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getAdminSecretName())
+                            .contains("my-existing-sso-admin-secret"));
+            step("and the ProvidedCapability's status carries the base url where the SSO service can be accessed",
+                    () -> assertThat(
+                            ((ExposedServerStatus) providedCapability.getStatus().findCurrentServerStatus().get()).getExternalBaseUrl())
+                            .isEqualTo("https://kc.apps.serv.run/auth"));
+            attachKubernetesResource("EntandoKeycloakServer", entandoKeycloakServer);
+        });
+        final ProvidedSsoCapability providedKeycloak = new ProvidedSsoCapability(
+                client.capabilities().buildCapabilityProvisioningResult(providedCapability));
+        step("And the provided Keycloak connection info reflects the external service", () -> {
+
+            step("using the 'Use External' provisioningStrategy",
+                    () -> assertThat(providedKeycloak.getBaseUrlToUse()).isEqualTo("https://kc.apps.serv.run/auth"));
+            step("and the default realm 'my-realm'",
+                    () -> assertThat(providedKeycloak.getDefaultRealm()).contains("my-realm"));
+        });
+    }
+
+    @Test
     @Description("Should fail when the admin secret specified is absent in the deployment namespace")
     void shouldFailWhenAdminSecretAbsent() {
         step("Given I have configured not configured a secret with admin credentials to a remote Keycloak server");
