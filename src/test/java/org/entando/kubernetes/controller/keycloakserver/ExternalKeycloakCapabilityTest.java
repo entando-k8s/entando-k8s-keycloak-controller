@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.entando.kubernetes.controller.spi.client.SerializedEntandoResource;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
+import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
@@ -38,7 +39,6 @@ import org.entando.kubernetes.model.capability.CapabilityScope;
 import org.entando.kubernetes.model.capability.ProvidedCapability;
 import org.entando.kubernetes.model.capability.StandardCapability;
 import org.entando.kubernetes.model.common.EntandoDeploymentPhase;
-import org.entando.kubernetes.model.common.ExposedServerStatus;
 import org.entando.kubernetes.model.common.ResourceReference;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.test.common.SourceLink;
@@ -109,12 +109,12 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
             step("and its frontEndUrl property reflects the connection info provided in the CapabilityRequirement",
                     () -> assertThat(entandoKeycloakServer.getSpec().getFrontEndUrl()).contains("https://kc.apps.serv.run:8080/auth"));
             step("and the ProvidedCapability's status carries the name of the correct admin secret to use",
-                    () -> assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getAdminSecretName())
+                    () -> assertThat(providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getAdminSecretName())
                             .contains("my-existing-sso-admin-secret"));
             step("and the ProvidedCapability's status carries the base url where the SSO service can be accessed",
                     () -> assertThat(
-                            ((ExposedServerStatus) providedCapability.getStatus().findCurrentServerStatus().get()).getExternalBaseUrl())
-                            .isEqualTo("https://kc.apps.serv.run:8080/auth"));
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getExternalBaseUrl())
+                            .contains("https://kc.apps.serv.run:8080/auth"));
             attachKubernetesResource("EntandoKeycloakServer", entandoKeycloakServer);
         });
         final ProvidedSsoCapability providedKeycloak = new ProvidedSsoCapability(
@@ -187,12 +187,12 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
             step("and its frontEndUrl property reflects the connection info provided in the CapabilityRequirement",
                     () -> assertThat(entandoKeycloakServer.getSpec().getFrontEndUrl()).contains("https://kc.apps.serv.run/auth"));
             step("and the ProvidedCapability's status carries the name of the correct admin secret to use",
-                    () -> assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getAdminSecretName())
+                    () -> assertThat(providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getAdminSecretName())
                             .contains("my-existing-sso-admin-secret"));
             step("and the ProvidedCapability's status carries the base url where the SSO service can be accessed",
                     () -> assertThat(
-                            ((ExposedServerStatus) providedCapability.getStatus().findCurrentServerStatus().get()).getExternalBaseUrl())
-                            .isEqualTo("https://kc.apps.serv.run/auth"));
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getExternalBaseUrl())
+                            .contains("https://kc.apps.serv.run/auth"));
             attachKubernetesResource("EntandoKeycloakServer", entandoKeycloakServer);
         });
         final ProvidedSsoCapability providedKeycloak = new ProvidedSsoCapability(
@@ -240,12 +240,14 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     });
                     step("And the statuses of  both the ProvidedCapability and EntandoKeycloakServer reflect the correct error message",
                             () -> {
-                                assertThat(entandoKeycloakServer.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
-                                        .getDetailMessage()).contains(
+                                assertThat(entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()
+                                        .getEntandoControllerFailure()
+                                        .get().getDetailMessage()).contains(
                                         "Please ensure that a secret with the name 'my-existing-sso-admin-secret' exists in the requested"
                                                 + " namespace");
-                                assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
-                                        .getDetailMessage()).contains(
+                                assertThat(providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()
+                                        .getEntandoControllerFailure()
+                                        .get().getDetailMessage()).contains(
                                         "Please ensure that a secret with the name 'my-existing-sso-admin-secret' exists in the requested"
                                                 + " namespace");
                             });
@@ -297,11 +299,13 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     });
                     step("And the statuses of  both the ProvidedCapability and EntandoKeycloakServer reflect the correct error message",
                             () -> {
-                                assertThat(entandoKeycloakServer.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
-                                        .getDetailMessage()).contains(
+                                assertThat(entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()
+                                        .getEntandoControllerFailure()
+                                        .get().getDetailMessage()).contains(
                                         "Please provide the hostname of the SSO service you intend to connect to");
-                                assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
-                                        .getDetailMessage()).contains(
+                                assertThat(providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()
+                                        .getEntandoControllerFailure()
+                                        .get().getDetailMessage()).contains(
                                         "Please provide the hostname of the SSO service you intend to connect to");
                             });
                 });
@@ -352,12 +356,14 @@ class ExternalKeycloakCapabilityTest extends KeycloakTestBase {
                     });
                     step("And the statuses of  both the ProvidedCapability and EntandoKeycloakServer reflect the correct error message",
                             () -> {
-                                assertThat(entandoKeycloakServer.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
-                                        .getDetailMessage()).contains(
+                                assertThat(entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()
+                                        .getEntandoControllerFailure()
+                                        .get().getDetailMessage()).contains(
                                         "Please provide the name of the secret containing the admin credentials for the SSO service you "
                                                 + "intend to connect to");
-                                assertThat(providedCapability.getStatus().findCurrentServerStatus().get().getEntandoControllerFailure()
-                                        .getDetailMessage()).contains(
+                                assertThat(providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()
+                                        .getEntandoControllerFailure()
+                                        .get().getDetailMessage()).contains(
                                         "Please provide the name of the secret containing the admin credentials for the SSO service you "
                                                 + "intend to connect to");
                             });

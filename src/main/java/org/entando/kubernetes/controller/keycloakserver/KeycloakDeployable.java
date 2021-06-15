@@ -32,15 +32,16 @@ import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.container.DeployableContainer;
 import org.entando.kubernetes.controller.spi.deployable.DbAwareDeployable;
 import org.entando.kubernetes.controller.spi.deployable.ExternalService;
+import org.entando.kubernetes.controller.spi.deployable.IngressingDeployable;
 import org.entando.kubernetes.controller.spi.deployable.Secretive;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
-import org.entando.kubernetes.controller.support.spibase.IngressingDeployableBase;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
+import org.entando.kubernetes.model.common.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
 public class KeycloakDeployable
-        implements IngressingDeployableBase<KeycloakDeploymentResult>, DbAwareDeployable<KeycloakDeploymentResult>,
+        implements IngressingDeployable<KeycloakDeploymentResult>, DbAwareDeployable<KeycloakDeploymentResult>,
         Secretive {
 
     public static final long KEYCLOAK_IMAGE_DEFAULT_USERID = 1000L;
@@ -71,7 +72,7 @@ public class KeycloakDeployable
             final String frontEndUrl = keycloakServer.getSpec().getFrontEndUrl().orElseThrow(IllegalStateException::new);
             return Optional.of(new ExternalKeycloakService(frontEndUrl));
         }
-        return IngressingDeployableBase.super.getExternalService();
+        return Optional.empty();
     }
 
     @Override
@@ -126,6 +127,21 @@ public class KeycloakDeployable
     @Override
     public List<Secret> getSecrets() {
         return ofNullable(keycloakAdminSecret).stream().collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<String> getFileUploadLimit() {
+        return keycloakServer.getSpec().getResourceRequirements().flatMap(EntandoResourceRequirements::getFileUploadLimit);
+    }
+
+    @Override
+    public Optional<String> getTlsSecretName() {
+        return keycloakServer.getSpec().getTlsSecretName();
+    }
+
+    @Override
+    public Optional<String> getIngressHostName() {
+        return keycloakServer.getSpec().getIngressHostName();
     }
 
 }

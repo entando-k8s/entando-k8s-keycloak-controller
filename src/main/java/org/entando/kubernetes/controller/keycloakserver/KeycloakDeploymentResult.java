@@ -21,8 +21,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.extensions.Ingress;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
 import org.entando.kubernetes.controller.spi.result.ExposedDeploymentResult;
-import org.entando.kubernetes.model.common.AbstractServerStatus;
-import org.entando.kubernetes.model.common.ExposedServerStatus;
+import org.entando.kubernetes.model.common.ServerStatus;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 
 public class KeycloakDeploymentResult extends ExposedDeploymentResult<KeycloakDeploymentResult> {
@@ -37,13 +36,12 @@ public class KeycloakDeploymentResult extends ExposedDeploymentResult<KeycloakDe
     }
 
     @Override
-    public KeycloakDeploymentResult withStatus(AbstractServerStatus status) {
-        final ExposedServerStatus exposedServerStatus = (ExposedServerStatus) status;
-        exposedServerStatus.setAdminSecretName(adminSecretName);
+    public KeycloakDeploymentResult withStatus(ServerStatus serverStatus) {
+        serverStatus.setAdminSecretName(adminSecretName);
         //orElseGet avoids a NPE
-        exposedServerStatus.setExternalBaseUrl(entandoKeycloakServer.getSpec().getFrontEndUrl().orElseGet(this::getExternalBaseUrl));
+        serverStatus.setExternalBaseUrl(entandoKeycloakServer.getSpec().getFrontEndUrl().orElseGet(this::getExternalBaseUrl));
         entandoKeycloakServer.getSpec().getDefaultRealm().ifPresent(r ->
-                exposedServerStatus.putDerivedDeploymentParameter(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER, r));
-        return super.withStatus(status);
+                serverStatus.putDerivedDeploymentParameter(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER, r));
+        return super.withStatus(serverStatus);
     }
 }

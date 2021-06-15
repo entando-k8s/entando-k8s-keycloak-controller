@@ -40,7 +40,6 @@ import org.entando.kubernetes.controller.spi.container.ParameterizableContainer;
 import org.entando.kubernetes.controller.spi.container.PersistentVolumeAwareContainer;
 import org.entando.kubernetes.controller.spi.container.SecretToMount;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
-import org.entando.kubernetes.controller.support.common.FluentTernary;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.common.EntandoResourceRequirements;
@@ -206,9 +205,11 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     }
 
     private String determineKeycloaksNonStandardDbVendorName(DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo) {
-        return FluentTernary.use("postgres")
-                .when(databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor() == DbmsVendorConfig.POSTGRESQL)
-                .orElse(databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor().getName());
+        if (databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor() == DbmsVendorConfig.POSTGRESQL) {
+            return "postgres";
+        } else {
+            return databaseSchemaConnectionInfo.getDatabaseServiceResult().getVendor().getName();
+        }
     }
 
     @Override

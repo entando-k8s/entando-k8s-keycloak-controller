@@ -56,7 +56,9 @@ import org.entando.kubernetes.model.capability.StandardCapability;
 import org.entando.kubernetes.model.capability.StandardCapabilityImplementation;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.common.EntandoCustomResource;
+import org.entando.kubernetes.model.common.EntandoCustomResourceStatus;
 import org.entando.kubernetes.model.common.EntandoDeploymentPhase;
+import org.entando.kubernetes.model.common.ServerStatus;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
@@ -66,8 +68,8 @@ import picocli.CommandLine;
 public class EntandoKeycloakServerController implements Runnable {
 
     public static final String SECRET_KIND = "Secret";
-    public static final int KEYCLOAK_DEPLOYMENT_TIME = 300;
-    public static final int DATBASE_DEPLOYMENT_TIME = 120;
+    public static final int KEYCLOAK_DEPLOYMENT_TIME = EntandoOperatorSpiConfig.getPodCompletionTimeoutSeconds();
+    public static final int DATABASE_DEPLOYMENT_TIME = EntandoOperatorSpiConfig.getPodCompletionTimeoutSeconds();
     private final Logger logger = Logger.getLogger(EntandoKeycloakServerController.class.getName());
     private final KubernetesClientForControllers k8sClient;
     private final CapabilityProvider capabilityProvider;
@@ -108,16 +110,18 @@ public class EntandoKeycloakServerController implements Runnable {
                 this.keycloakServer = this.k8sClient.createOrPatchEntandoResource(toKeycloakServer(this.providedCapability));
                 validateExternalServiceRequirements(this.providedCapability);
             }
-            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, databaseServiceFor(keycloakServer), resolveCaSecret());
+            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, resolveDatabaseService(), resolveCaSecret());
             KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable, KEYCLOAK_DEPLOYMENT_TIME);
-            keycloakServer = k8sClient.updateStatus(keycloakServer, result.getStatus());
-            providedCapability = k8sClient.updateStatus(providedCapability, result.getStatus());
+            providedCapability = k8sClient.updateStatus(providedCapability,
+                    result.getStatus().withOriginatingCustomResource(providedCapability));
             if (!result.getStatus().hasFailed()) {
                 if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer)
                         != CapabilityProvisioningStrategy.USE_EXTERNAL) {
                     ensureHttpAccess(result);
                 }
-                ensureKeycloakRealm(new ProvidedSsoCapability(capabilityProvider.loadProvisioningResult(providedCapability)));
+                final ServerStatus mainServerStatus = providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER)
+                        .orElseThrow(IllegalStateException::new);
+                ensureKeycloakRealm(new ProvidedSsoCapability(k8sClient.loadCapabilityProvisioningResult(mainServerStatus)));
             }
             keycloakServer = k8sClient.deploymentEnded(keycloakServer);
             providedCapability = k8sClient.deploymentEnded(providedCapability);
@@ -126,8 +130,8 @@ public class EntandoKeycloakServerController implements Runnable {
             keycloakServer = k8sClient.deploymentFailed(keycloakServer, e, NameUtils.MAIN_QUALIFIER);
             providedCapability = k8sClient.deploymentFailed(providedCapability, e, NameUtils.MAIN_QUALIFIER);
         }
-        keycloakServer.getStatus().findFailedServerStatus().ifPresent(ss -> {
-            throw new CommandLine.ExecutionException(new CommandLine(this), ss.getEntandoControllerFailure().getDetailMessage());
+        keycloakServer.getStatus().findFailedServerStatus().flatMap(ServerStatus::getEntandoControllerFailure).ifPresent(ss -> {
+            throw new CommandLine.ExecutionException(new CommandLine(this), ss.getDetailMessage());
         });
     }
 
@@ -283,27 +287,31 @@ public class EntandoKeycloakServerController implements Runnable {
         }
     }
 
-    private DatabaseConnectionInfo databaseServiceFor(EntandoKeycloakServer newEntandoKeycloakServer) throws TimeoutException {
+    private DatabaseConnectionInfo resolveDatabaseService() throws TimeoutException {
         // Create database for Keycloak
-        final DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(newEntandoKeycloakServer);
-        if (dbmsVendor == DbmsVendor.EMBEDDED || EntandoKeycloakHelper.provisioningStrategyOf(newEntandoKeycloakServer)
+        final DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(keycloakServer);
+        if (dbmsVendor == DbmsVendor.EMBEDDED || EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer)
                 != CapabilityProvisioningStrategy.DEPLOY_DIRECTLY) {
             return null;
         } else {
             final CapabilityProvisioningResult databaseCapability = this.capabilityProvider
-                    .provideCapability(newEntandoKeycloakServer, new CapabilityRequirementBuilder()
+                    .provideCapability(keycloakServer, new CapabilityRequirementBuilder()
                             .withCapability(StandardCapability.DBMS)
                             .withImplementation(StandardCapabilityImplementation
                                     .valueOf(dbmsVendor.name()))
                             .withResolutionScopePreference(
-                                    newEntandoKeycloakServer.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE)
+                                    (keycloakServer.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE),
+                                    CapabilityScope.DEDICATED)
                             .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
-                            .build(), DATBASE_DEPLOYMENT_TIME);
+                            .build(), DATABASE_DEPLOYMENT_TIME);
+            final EntandoCustomResourceStatus dbStatus = databaseCapability.getProvidedCapability().getStatus();
+            dbStatus.getServerStatus(NameUtils.MAIN_QUALIFIER).ifPresent(s ->
+                    this.keycloakServer = k8sClient.updateStatus(keycloakServer, new ServerStatus(NameUtils.DB_QUALIFIER, s)));
             databaseCapability.getControllerFailure().ifPresent(f -> {
                 throw new EntandoControllerException(databaseCapability.getProvidedCapability(),
                         format("Could not prepare a database for SSO %s/%s:%n%s",
-                                newEntandoKeycloakServer.getMetadata().getNamespace(),
-                                newEntandoKeycloakServer.getMetadata().getName(),
+                                keycloakServer.getMetadata().getNamespace(),
+                                keycloakServer.getMetadata().getName(),
                                 f.getDetailMessage()));
             });
             return new ProvidedDatabaseCapability(databaseCapability);

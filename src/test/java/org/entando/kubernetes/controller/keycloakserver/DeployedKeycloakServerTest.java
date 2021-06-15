@@ -64,7 +64,7 @@ import org.entando.kubernetes.model.capability.StandardCapability;
 import org.entando.kubernetes.model.capability.StandardCapabilityImplementation;
 import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.common.EntandoDeploymentPhase;
-import org.entando.kubernetes.model.common.ExposedServerStatus;
+import org.entando.kubernetes.model.common.ServerStatus;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
@@ -134,12 +134,12 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
             step("and it is owned by the EntandoKeycloakServer to ensure only changes from the EntandoKeycloakServer will change the "
                             + "implementing Kubernetes resources",
                     () -> assertThat(ResourceUtils.customResourceOwns(entandoKeycloakServer, providedCapability)));
-            final ExposedServerStatus exposedServerStatus = (ExposedServerStatus) providedCapability.getStatus()
-                    .findCurrentServerStatus().get();
+            final ServerStatus exposedServerStatus = (ServerStatus) providedCapability.getStatus()
+                    .getServerStatus(NameUtils.MAIN_QUALIFIER).get();
             step("and the external base url that can be used to connect to this SSO service is available on the status of the "
                             + "ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getExternalBaseUrl())
-                            .isEqualTo("https://" + MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth"));
+                            .contains("https://" + MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth"));
             step("and the name of the admin secret is available on the status of the ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getAdminSecretName()).contains("my-keycloak-admin-secret"));
         });
@@ -298,7 +298,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
         });
         step("And the resulting SsoConnectionInfo reflects the correct information to connect to the deployed SSO service", () -> {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
-                    getCapabilityProvider().loadProvisioningResult(providedCapability));
+                    getClient().entandoResources().loadCapabilityProvisioningResult(
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
@@ -362,12 +363,12 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
                     () -> assertThat(providedCapability.getSpec().getPreferredTlsSecretName()).contains("my-tls-secret"));
             step("and the hostname previously specified",
                     () -> assertThat(providedCapability.getSpec().getPreferredIngressHostName()).contains("myhost.com"));
-            final ExposedServerStatus exposedServerStatus = (ExposedServerStatus) providedCapability.getStatus()
-                    .findCurrentServerStatus().get();
+            final ServerStatus exposedServerStatus = (ServerStatus) providedCapability.getStatus()
+                    .getServerStatus(NameUtils.MAIN_QUALIFIER).get();
             step("and the external base url that can be used to connect to this SSO service is available on the status of the "
                             + "ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getExternalBaseUrl())
-                            .isEqualTo("https://myhost.com/auth"));
+                            .contains("https://myhost.com/auth"));
             step("and the name of the admin secret is available on the status of the ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getAdminSecretName())
                             .contains("my-keycloak-admin-secret"));
@@ -390,7 +391,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
         });
         step("And the resulting SsoConnectionInfo reflects the correct information to connect to the deployed SSO service", () -> {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
-                    getCapabilityProvider().loadProvisioningResult(providedCapability));
+                    getClient().entandoResources().loadCapabilityProvisioningResult(
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://myhost.com/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
@@ -465,7 +467,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
             entandoKeycloakServerHolder.set(entandoKeycloakServer);
         });
         step("But the controller to process requests for the DBMS capability provides a capability in 'FAILED' state",
-                () -> doAnswer(withFailedInternalServerStatus(NameUtils.MAIN_QUALIFIER, new NullPointerException()))
+                () -> doAnswer(withFailedServerStatus(NameUtils.MAIN_QUALIFIER, new NullPointerException()))
                         .when(client.capabilities())
                         .waitForCapabilityCompletion(argThat(matchesCapability(StandardCapability.DBMS)), anyInt()));
         ValueHolder<Throwable> throwable = new ValueHolder<>();
@@ -477,11 +479,22 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
             assertThat(entandoKeycloakServer.getStatus().getPhase()).isEqualTo(EntandoDeploymentPhase.FAILED);
             attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
         });
-        step("And the 'main' ServerStatus carries the actual failure", () -> {
+        step("And the 'main' ServerStatus carries the failure", () -> {
             assertThat(
                     entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getEntandoControllerFailure()
-                            .getDetailMessage())
+                            .get().getDetailMessage())
                     .contains("Could not prepare a database for SSO my-namespace/my-keycloak");
+            attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
+        });
+        step("And the 'db' ServerStatus carries the original failure", () -> {
+            final ServerStatus dbStatus = entandoKeycloakServer.getStatus().getServerStatus(NameUtils.DB_QUALIFIER).get();
+            assertThat(
+                    dbStatus.getEntandoControllerFailure().get().getDetailMessage())
+                    .startsWith("java.lang.NullPointerException");
+            assertThat(
+                    dbStatus.getEntandoControllerFailure().get().getFailedObjectKind()).isEqualTo("ProvidedCapability");
+            assertThat(
+                    dbStatus.getEntandoControllerFailure().get().getFailedObjectName()).isEqualTo("default-postgresql-dbms-in-namespace");
             attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
         });
         step("And this exception was logged as SEVERE", () -> {
@@ -534,7 +547,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityS
         step("And the 'main' ServerStatus carries the actual failure", () -> {
             assertThat(
                     entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getEntandoControllerFailure()
-                            .getDetailMessage())
+                            .get().getDetailMessage())
                     .contains("Could not disable Keycloak HTTPS requirement:Execution failed!");
             attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
         });

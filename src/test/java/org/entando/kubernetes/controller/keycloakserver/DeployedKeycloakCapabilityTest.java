@@ -268,7 +268,8 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
         });
         step("And the resulting SsoConnectionInfo reflects the correct information to connect to the deployed SSO service", () -> {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
-                    getCapabilityProvider().loadProvisioningResult(providedCapability));
+                    getClient().entandoResources().loadCapabilityProvisioningResult(
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl())
                     .isEqualTo("https://default-sso-in-namespace-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
@@ -402,7 +403,8 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
         });
         step("And the resulting SsoConnectionInfo reflects the correct information to connect to the deployed SSO service", () -> {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
-                    getCapabilityProvider().loadProvisioningResult(providedCapability));
+                    getClient().entandoResources().loadCapabilityProvisioningResult(
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl())
                     .isEqualTo("https://default-sso-in-namespace-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
@@ -482,7 +484,8 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
         });
         step("And the resulting SsoConnectionInfo reflects the correct information to connect to the deployed SSO service", () -> {
             SsoConnectionInfo connectionConfig = new ProvidedSsoCapability(
-                    getCapabilityProvider().loadProvisioningResult(providedCapability));
+                    getClient().entandoResources().loadCapabilityProvisioningResult(
+                            providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://myhost.com/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
