@@ -54,7 +54,7 @@ import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
-import org.entando.kubernetes.controller.spi.container.SsoConnectionInfo;
+import org.entando.kubernetes.controller.spi.deployable.SsoConnectionInfo;
 import org.entando.kubernetes.controller.support.client.doubles.SimpleK8SClientDouble;
 import org.entando.kubernetes.controller.support.common.EntandoOperatorConfigProperty;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
@@ -68,7 +68,7 @@ import org.entando.kubernetes.model.common.ServerStatus;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
-import org.entando.kubernetes.test.common.CapabilityStatusEmulator;
+import org.entando.kubernetes.test.common.CustomResourceStatusEmulator;
 import org.entando.kubernetes.test.common.LogInterceptor;
 import org.entando.kubernetes.test.common.SourceLink;
 import org.entando.kubernetes.test.common.ValueHolder;
@@ -87,7 +87,7 @@ import picocli.CommandLine;
 @Issue("ENG-2284")
 @SourceLink("DeployedKeycloakServerTest.java")
 @SuppressWarnings({"java:S5961"})//because this test is intended to generate documentation and should read like the generated document
-class DeployedKeycloakServerTest extends KeycloakTestBase implements CapabilityStatusEmulator<SimpleK8SClientDouble> {
+class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResourceStatusEmulator<SimpleK8SClientDouble> {
 
     public static final String MY_KEYCLOAK = "my-keycloak";
 
