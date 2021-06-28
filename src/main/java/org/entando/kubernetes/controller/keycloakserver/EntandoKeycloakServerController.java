@@ -110,7 +110,7 @@ public class EntandoKeycloakServerController implements Runnable {
                 this.keycloakServer = this.k8sClient.createOrPatchEntandoResource(toKeycloakServer(this.providedCapability));
                 validateExternalServiceRequirements(this.providedCapability);
             }
-            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, resolveDatabaseService(), resolveCaSecret());
+            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, provideDatabaseIfRequired(), resolveCaSecret());
             KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable, KEYCLOAK_DEPLOYMENT_TIME);
             providedCapability = k8sClient.updateStatus(providedCapability,
                     result.getStatus().withOriginatingCustomResource(providedCapability));
@@ -201,7 +201,7 @@ public class EntandoKeycloakServerController implements Runnable {
                 .endMetadata()
                 .editSpec()
                 .withProvisioningStrategy(EntandoKeycloakHelper.provisioningStrategyOf(providedCapability))
-                .withDefault(providedCapability.getSpec().getResolutionScopePreference().contains(CapabilityScope.CLUSTER))
+                .withDefault(providedCapability.getSpec().getResolutionScopePreference().indexOf(CapabilityScope.CLUSTER) == 0)
                 .withDbms(providedCapability.getSpec().getPreferredDbms().orElse(null))
                 .withIngressHostName(providedCapability.getSpec().getPreferredIngressHostName().orElse(null))
                 .withDefaultRealm(providedCapability.getSpec().getCapabilityParameters().get(ProvidedSsoCapability.DEFAULT_REALM_PARAMETER))
@@ -287,7 +287,7 @@ public class EntandoKeycloakServerController implements Runnable {
         }
     }
 
-    private DatabaseConnectionInfo resolveDatabaseService() throws TimeoutException {
+    private DatabaseConnectionInfo provideDatabaseIfRequired() throws TimeoutException {
         // Create database for Keycloak
         final DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(keycloakServer);
         if (dbmsVendor == DbmsVendor.EMBEDDED || EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer)
@@ -299,19 +299,24 @@ public class EntandoKeycloakServerController implements Runnable {
                             .withCapability(StandardCapability.DBMS)
                             .withImplementation(StandardCapabilityImplementation
                                     .valueOf(dbmsVendor.name()))
-                            .withResolutionScopePreference(
-                                    (keycloakServer.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE),
-                                    CapabilityScope.DEDICATED)
+                            .withResolutionScopePreference(CapabilityScope.NAMESPACE, CapabilityScope.DEDICATED, CapabilityScope.CLUSTER)
                             .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
                             .build(), DATABASE_DEPLOYMENT_TIME);
-            final EntandoCustomResourceStatus dbStatus = databaseCapability.getProvidedCapability().getStatus();
+            final ProvidedCapability dbmsCapability = databaseCapability.getProvidedCapability();
+            final EntandoCustomResourceStatus dbStatus = dbmsCapability.getStatus();
             dbStatus.getServerStatus(NameUtils.MAIN_QUALIFIER).ifPresent(s ->
                     this.keycloakServer = k8sClient.updateStatus(keycloakServer, new ServerStatus(NameUtils.DB_QUALIFIER, s)));
             databaseCapability.getControllerFailure().ifPresent(f -> {
-                throw new EntandoControllerException(databaseCapability.getProvidedCapability(),
-                        format("Could not prepare a database for SSO %s/%s:%n%s",
+                throw new EntandoControllerException(dbmsCapability,
+                        format("Could not prepare a DBMS capability for SSO %s/%s. Please inspect the ProvidedCapability"
+                                        + " %s/%s, "
+                                        + "address the "
+                                        + "deployment failure and force a redeployment using the annotation value 'entando"
+                                        + ".org/processing-instruction: force. The following message was received:%n %s",
                                 keycloakServer.getMetadata().getNamespace(),
                                 keycloakServer.getMetadata().getName(),
+                                dbmsCapability.getMetadata().getNamespace(),
+                                dbmsCapability.getMetadata().getName(),
                                 f.getDetailMessage()));
             });
             return new ProvidedDatabaseCapability(databaseCapability);

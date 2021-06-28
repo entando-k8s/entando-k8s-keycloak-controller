@@ -13,6 +13,21 @@
  * details.
  *
  */
+/*
+ *
+ * Copyright 2015-Present Entando Inc. (http://www.entando.com) All rights reserved.
+ *
+ * This library is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the Free
+ * Software Foundation; either version 2.1 of the License, or (at your option)
+ * any later version.
+ *
+ *  This library is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+ * details.
+ *
+ */
 
 package org.entando.kubernetes.controller.keycloakserver;
 
@@ -483,7 +498,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             assertThat(
                     entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getEntandoControllerFailure()
                             .get().getDetailMessage())
-                    .contains("Could not prepare a database for SSO my-namespace/my-keycloak");
+                    .contains("Could not prepare a DBMS capability for SSO my-namespace/my-keycloak");
             attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
         });
         step("And the 'db' ServerStatus carries the original failure", () -> {
@@ -499,9 +514,9 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         });
         step("And this exception was logged as SEVERE", () -> {
             assertThat(LogInterceptor.getLogRecords())
-                    .anyMatch(r -> r.getMessage().contains("Could not prepare a database for SSO my-namespace/my-keycloak"));
+                    .anyMatch(r -> r.getMessage().contains("Could not prepare a DBMS capability for SSO my-namespace/my-keycloak"));
             final LogRecord logRecord = LogInterceptor.getLogRecords().stream()
-                    .filter(r -> r.getMessage().contains("Could not prepare a database for SSO my-namespace/my-keycloak"))
+                    .filter(r -> r.getMessage().contains("Could not prepare a DBMS capability for SSO my-namespace/my-keycloak"))
                     .findFirst()
                     .get();
             assertThat(logRecord.getLevel()).isEqualTo(Level.SEVERE);
