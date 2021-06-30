@@ -263,6 +263,8 @@ public class EntandoKeycloakServerController implements Runnable {
             //that he is taking control of it.  Now we change control over to the original EntandoDatabaseService, make it own the
             // ProvidedCapability so that only its events will be listened to.
             capabilityToSyncTo.getMetadata().getOwnerReferences().add(ResourceUtils.buildOwnerReference(resourceToProcess));
+            ofNullable(capabilityToSyncTo.getMetadata().getAnnotations())
+                    .ifPresent(m -> m.remove(CapabilityProvider.ORIGIN_UUID_ANNOTATION_NAME));
         }
         return capabilityToSyncTo;
     }
