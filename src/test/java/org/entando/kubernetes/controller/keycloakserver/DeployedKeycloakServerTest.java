@@ -292,9 +292,9 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             step("Targeting port 8080 in the Deployment", () -> assertThat(service.getSpec().getPorts().get(0).getPort()).isEqualTo(8080));
             step("And with a label selector matching the labels of the Pod Template on the  Deployment",
                     () -> assertThat(service.getSpec().getSelector()).containsAllEntriesOf(
-                            Map.of("EntandoResourceKind", "EntandoKeycloakServer", "EntandoKeycloakServer",
+                            Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", "EntandoKeycloakServer",
                                     entandoKeycloakServer.getMetadata().getName(),
-                                    "deployment", entandoKeycloakServer.getMetadata().getName())
+                                    LabelNames.DEPLOYMENT.getName(), entandoKeycloakServer.getMetadata().getName())
                     ));
         });
 
