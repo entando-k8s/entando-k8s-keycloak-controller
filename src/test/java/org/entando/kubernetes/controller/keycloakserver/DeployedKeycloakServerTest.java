@@ -176,7 +176,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         });
         step("And a database schema was prepared for the RedHat SSO service", () -> {
             final Pod dbPreparationPod = getClient().pods().loadPod(MY_NAMESPACE,
-                    Map.of("EntandoResourceKind", "EntandoKeycloakServer", "jobKind", "db-preparation-job", "EntandoKeycloakServer",
+                    Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", LabelNames.JOB_KIND.getName(), "db-preparation-job",
+                            "EntandoKeycloakServer",
                             MY_KEYCLOAK));
             assertThat(dbPreparationPod).isNotNull();
             final Container theInitContainer = dbPreparationPod.getSpec().getInitContainers().get(0);

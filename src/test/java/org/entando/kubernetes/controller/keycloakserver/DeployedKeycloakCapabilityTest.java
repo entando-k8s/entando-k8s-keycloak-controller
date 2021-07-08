@@ -39,6 +39,7 @@ import org.entando.kubernetes.controller.spi.command.SerializationHelper;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
+import org.entando.kubernetes.controller.spi.common.LabelNames;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -116,7 +117,8 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
         });
         step("And a database schema was prepared for the RedHat SSO service", () -> {
             final Pod dbPreparationPod = getClient().pods().loadPod(MY_NAMESPACE,
-                    Map.of("EntandoResourceKind", "EntandoKeycloakServer", "jobKind", "db-preparation-job", "EntandoKeycloakServer",
+                    Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", LabelNames.JOB_KIND.getName(), "db-preparation-job",
+                            "EntandoKeycloakServer",
                             "default-sso-in-namespace"));
             assertThat(dbPreparationPod).isNotNull();
             final Container theInitContainer = dbPreparationPod.getSpec().getInitContainers().get(0);
@@ -235,13 +237,11 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             attachKubernetesResource("Service", service);
             step("Targeting port 8080 in the Deployment", () -> assertThat(service.getSpec().getPorts().get(0).getPort()).isEqualTo(8080));
             step("And with a label selector matching the labels of the Pod Template on the  Deployment",
-                    () -> {
-                        return assertThat(service.getSpec().getSelector()).containsAllEntriesOf(
-                                Map.of("EntandoResourceKind", "EntandoKeycloakServer", "EntandoKeycloakServer",
-                                        entandoKeycloakServer.getMetadata().getName(),
-                                        "deployment", entandoKeycloakServer.getMetadata().getName())
-                        );
-                    });
+                    () -> assertThat(service.getSpec().getSelector()).containsAllEntriesOf(
+                            Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", "EntandoKeycloakServer",
+                                    entandoKeycloakServer.getMetadata().getName(),
+                                    LabelNames.DEPLOYMENT.getName(), entandoKeycloakServer.getMetadata().getName())
+                    ));
         });
 
         step("And a Kubernetes Ingress was created:", () -> {
@@ -371,13 +371,11 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             attachKubernetesResource("Service", service);
             step("Targeting port 8080 in the Deployment", () -> assertThat(service.getSpec().getPorts().get(0).getPort()).isEqualTo(8080));
             step("And with a label selector matching the labels of the Pod Template on the  Deployment",
-                    () -> {
-                        return assertThat(service.getSpec().getSelector()).containsAllEntriesOf(
-                                Map.of("EntandoResourceKind", "EntandoKeycloakServer", "EntandoKeycloakServer",
-                                        entandoKeycloakServer.getMetadata().getName(),
-                                        "deployment", entandoKeycloakServer.getMetadata().getName())
-                        );
-                    });
+                    () -> assertThat(service.getSpec().getSelector()).containsAllEntriesOf(
+                            Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", "EntandoKeycloakServer",
+                                    entandoKeycloakServer.getMetadata().getName(),
+                                    LabelNames.DEPLOYMENT.getName(), entandoKeycloakServer.getMetadata().getName())
+                    ));
         });
         step("And a Kubernetes Ingress was created:", () -> {
             final Ingress ingress = client.ingresses()
