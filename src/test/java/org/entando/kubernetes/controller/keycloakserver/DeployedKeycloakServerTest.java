@@ -65,6 +65,7 @@ import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfigProperty;
+import org.entando.kubernetes.controller.spi.common.LabelNames;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.ResourceUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -149,7 +150,15 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             step("and it is owned by the EntandoKeycloakServer to ensure only changes from the EntandoKeycloakServer will change the "
                             + "implementing Kubernetes resources",
                     () -> assertThat(ResourceUtils.customResourceOwns(entandoKeycloakServer, providedCapability)));
-            final ServerStatus exposedServerStatus = (ServerStatus) providedCapability.getStatus()
+            step("and it is has the correct labels to optimize lookups in future",
+                    () -> {
+                        assertThat(providedCapability.getMetadata().getLabels()).containsEntry(LabelNames.CAPABILITY.getName(), "Sso");
+                        assertThat(providedCapability.getMetadata().getLabels())
+                                .containsEntry(LabelNames.CAPABILITY_IMPLEMENTATION.getName(), "RedhatSso");
+                        assertThat(providedCapability.getMetadata().getLabels())
+                                .containsEntry(LabelNames.CAPABILITY_PROVISION_SCOPE.getName(), "Namespace");
+                    });
+            final ServerStatus exposedServerStatus = providedCapability.getStatus()
                     .getServerStatus(NameUtils.MAIN_QUALIFIER).get();
             step("and the external base url that can be used to connect to this SSO service is available on the status of the "
                             + "ProvidedCapability ",

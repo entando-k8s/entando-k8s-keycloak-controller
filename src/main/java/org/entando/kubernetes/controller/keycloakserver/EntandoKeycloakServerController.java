@@ -62,6 +62,7 @@ import org.entando.kubernetes.model.common.ServerStatus;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerBuilder;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServerSpec;
+import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import picocli.CommandLine;
 
 @CommandLine.Command()
@@ -109,6 +110,10 @@ public class EntandoKeycloakServerController implements Runnable {
                 this.providedCapability = (ProvidedCapability) resourceToProcess;
                 this.keycloakServer = this.k8sClient.createOrPatchEntandoResource(toKeycloakServer(this.providedCapability));
                 validateExternalServiceRequirements(this.providedCapability);
+                if (ResourceUtils.addCapabilityLabels(this.providedCapability)) {
+                    this.providedCapability = this.k8sClient.createOrPatchEntandoResource(this.providedCapability);
+                }
+
             }
             KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, provideDatabaseIfRequired(), resolveCaSecret());
             KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable, KEYCLOAK_DEPLOYMENT_TIME);
@@ -243,8 +248,7 @@ public class EntandoKeycloakServerController implements Runnable {
                 .endMetadata()
                 .editSpec()
                 .withCapability(StandardCapability.SSO)
-                .withImplementation(StandardCapabilityImplementation
-                        .valueOf(EntandoKeycloakHelper.determineStandardImage(resourceToProcess).name()))
+                .withImplementation(determineImplementation(resourceToProcess))
                 .withProvisioningStrategy(EntandoKeycloakHelper.provisioningStrategyOf(resourceToProcess))
                 .withResolutionScopePreference(
                         resourceToProcess.getSpec().isDefault() ? CapabilityScope.CLUSTER : CapabilityScope.NAMESPACE)
@@ -266,7 +270,17 @@ public class EntandoKeycloakServerController implements Runnable {
             ofNullable(capabilityToSyncTo.getMetadata().getAnnotations())
                     .ifPresent(m -> m.remove(CapabilityProvider.ORIGIN_UUID_ANNOTATION_NAME));
         }
+        ResourceUtils.addCapabilityLabels(capabilityToSyncTo);
         return capabilityToSyncTo;
+    }
+
+    private StandardCapabilityImplementation determineImplementation(EntandoKeycloakServer resourceToProcess) {
+        StandardKeycloakImage keycloakImage = EntandoKeycloakHelper.determineStandardImage(resourceToProcess);
+        if (resourceToProcess.getSpec().getProvisioningStrategy().map(CapabilityProvisioningStrategy.USE_EXTERNAL::equals).orElse(false)) {
+            //Allow it to be overridden if it is an existing external SSO
+            keycloakImage = resourceToProcess.getSpec().getStandardImage().orElse(keycloakImage);
+        }
+        return StandardCapabilityImplementation.valueOf(keycloakImage.name());
     }
 
     private Secret resolveCaSecret() {
