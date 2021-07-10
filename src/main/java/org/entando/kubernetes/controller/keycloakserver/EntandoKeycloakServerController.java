@@ -117,8 +117,10 @@ public class EntandoKeycloakServerController implements Runnable {
             }
             KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, provideDatabaseIfRequired(), resolveCaSecret());
             KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable, KEYCLOAK_DEPLOYMENT_TIME);
-            providedCapability = k8sClient.updateStatus(providedCapability,
-                    result.getStatus().withOriginatingCustomResource(providedCapability));
+            providedCapability = k8sClient.updateStatus(providedCapability, result.getStatus()
+                    .withOriginatingCustomResource(providedCapability));
+            keycloakServer = k8sClient.updateStatus(keycloakServer, result.getStatus()
+                    .withOriginatingCustomResource(providedCapability));
             if (!result.getStatus().hasFailed()) {
                 if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer)
                         != CapabilityProvisioningStrategy.USE_EXTERNAL) {
