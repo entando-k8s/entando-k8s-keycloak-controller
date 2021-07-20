@@ -1,4 +1,4 @@
-FROM entando/entando-k8s-operator-common:0.0.0-SNAPSHOT-PR-61-11
+FROM entando/entando-k8s-operator-common:0.0.0-SNAPSHOT-PR-61-14
 
 ARG VERSION
 LABEL name="Entando K8S Keycloak Controller" \
