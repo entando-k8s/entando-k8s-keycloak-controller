@@ -21,10 +21,10 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>6.3.18</version>
+        <version>6.4.1</version>
         <relativePath/>
     </parent>
-    <version>6.3.0-SNAPSHOT</version>
+    <version>6.4.0-SNAPSHOT</version>
     <artifactId>entando-k8s-keycloak-controller</artifactId>
     <name>Entando K8S Controller for Keycloak</name>
     <description>Entando's K8S Controller for Keycloak</description>
@@ -64,10 +64,12 @@
     <properties>
         <github.organization>entando-k8s</github.organization>
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>6.3.19</entando-k8s-operator-common.version>
+        <entando-k8s-operator-common.version>6.4.0</entando-k8s-operator-common.version>
         <skipLicenseDownload>true</skipLicenseDownload>
-        <preDeploymentTestGroups>pre-deployment</preDeploymentTestGroups>
-        <postDeploymentTestGroups>post-deployment</postDeploymentTestGroups>
+        <preDeploymentTestGroups>in-process</preDeploymentTestGroups>
+        <postDeploymentTestGroups>smoke</postDeploymentTestGroups>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
     </properties>
     <issueManagement>
         <system>Github</system>
@@ -112,6 +114,12 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.oracle.ojdbc</groupId>
@@ -122,32 +130,32 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
         </dependency>
 
+
         <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
+
+
         <!-- test dependencies-->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.jayway.jsonpath</groupId>
-            <artifactId>json-path</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -156,6 +164,11 @@
             <scope>test</scope>
             <type>test-jar</type>
             <classifier>tests</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <profiles>
@@ -170,17 +183,13 @@
         </profile>
     </profiles>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <version>2.8.2</version></plugin>
-    
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M1</version></plugin>
-    </plugins>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.8.2</version>
+            </plugin>
+        </plugins>
     </build>
-  </project>
+</project>

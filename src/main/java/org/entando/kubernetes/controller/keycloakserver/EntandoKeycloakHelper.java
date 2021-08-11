@@ -16,9 +16,16 @@
 
 package org.entando.kubernetes.controller.keycloakserver;
 
+import static java.util.Optional.ofNullable;
+
+import java.util.Collections;
+import java.util.Map;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
 import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
-import org.entando.kubernetes.model.DbmsVendor;
+import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
+import org.entando.kubernetes.model.capability.ExternallyProvidedService;
+import org.entando.kubernetes.model.capability.ProvidedCapability;
+import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 
@@ -51,4 +58,29 @@ public class EntandoKeycloakHelper {
         }
         return dbmsVendor;
     }
+
+    public static String deriveFrontEndUrl(ProvidedCapability providedCapability) {
+        ExternallyProvidedService s = providedCapability.getSpec().getExternallyProvisionedService()
+                .orElseThrow(IllegalArgumentException::new);
+        final Map<String, String> capabilityParameters = ofNullable(providedCapability.getSpec().getCapabilityParameters())
+                .orElse(Collections.emptyMap());
+        final String port = s.getPort().filter(p -> !(p == 80 || p == 443)).map(p -> ":" + p).orElse("");
+        String protocol;
+        if (s.getPort().map(p -> p == 80).orElse(false)) {
+            protocol = "http";
+        } else {
+            protocol = "https";
+        }
+        return ofNullable(capabilityParameters.get("frontEndUrl")).orElse(protocol + "://" + s.getHost() + port + "/auth");
+    }
+
+    public static CapabilityProvisioningStrategy provisioningStrategyOf(EntandoKeycloakServer e) {
+        return e.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY);
+    }
+
+    public static CapabilityProvisioningStrategy provisioningStrategyOf(ProvidedCapability e) {
+        return e.getSpec().getProvisioningStrategy().orElse(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY);
+    }
 }
+
+
