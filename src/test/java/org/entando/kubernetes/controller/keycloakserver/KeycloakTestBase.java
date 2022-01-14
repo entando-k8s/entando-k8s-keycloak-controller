@@ -40,7 +40,7 @@ import org.mockito.Mock;
 
 abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelper {
 
-    //NB!! if the builder pod has the ENTANDO_DEFAULT_ROUTING_SUFFIX set, the systemproperty doesn't make a difference.
+    //NB!! if the builder pod has the ENTANDO_DEFAULT_ROUTING_SUFFIX set, the system property doesn't make a difference.
     public static final String THE_ROUTING_SUFFIX = ofNullable(
             System.getenv(EntandoOperatorConfigProperty.ENTANDO_DEFAULT_ROUTING_SUFFIX.name())).orElse("entando.org");
 
@@ -54,7 +54,7 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
 
     @Override
     public Optional<SimpleKeycloakClient> getKeycloakClient() {
-        return Optional.of(keycloakClient);
+        return Optional.ofNullable(keycloakClient);
     }
 
     @Override
