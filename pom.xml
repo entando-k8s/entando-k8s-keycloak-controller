@@ -21,60 +21,52 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>6.4.3</version>
+        <version>7.0.3</version>
         <relativePath/>
     </parent>
-    <version>6.4.0-SNAPSHOT</version>
     <artifactId>entando-k8s-keycloak-controller</artifactId>
+    <version>7.0.0-SNAPSHOT</version>
     <name>Entando K8S Controller for Keycloak</name>
     <description>Entando's K8S Controller for Keycloak</description>
-    <inceptionYear>2019</inceptionYear>
     <url>https://central.entando.com</url>
+    <inceptionYear>2019</inceptionYear>
 
-    <licenses>
-        <license>
-            <name>GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1, February 1999</name>
-            <url>https://www.gnu.org/licenses/lgpl-2.1.txt</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
+    <!-- LICENSE AND INFO -->
     <organization>
         <name>Entando Inc.</name>
         <url>http://www.entando.com/</url>
     </organization>
-    <repositories>
-        <repository>
-            <id>jx-releases</id>
-            <url>https://nexus-jx.apps.serv.run/repository/maven-releases/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
+    <licenses>
+        <license>
+            <name>GNU LESSER GENERAL PUBLIC LICENSE, Version 3, 29 June 2007</name>
+            <url>https://www.gnu.org/licenses/lgpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <!-- SCM & ISSUES -->
     <scm>
         <connection>scm:git:git@github.com:${github.organization}/${project.artifactId}.git</connection>
-        <developerConnection>scm:git:git@github.com:${github.organization}//${project.artifactId}.git
+        <developerConnection>scm:git:git@github.com:${github.organization}/${project.artifactId}.git
         </developerConnection>
         <url>https://github.com/${github.organization}/${project.artifactId}/</url>
         <tag>HEAD</tag>
     </scm>
-    <properties>
-        <github.organization>entando-k8s</github.organization>
-        <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>6.4.0</entando-k8s-operator-common.version>
-        <skipLicenseDownload>true</skipLicenseDownload>
-        <preDeploymentTestGroups>in-process</preDeploymentTestGroups>
-        <postDeploymentTestGroups>smoke</postDeploymentTestGroups>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-    </properties>
     <issueManagement>
         <system>Github</system>
         <url>https://github.com/${github.organization}/${project.artifactId}/issues/</url>
     </issueManagement>
+    <!-- PROPERTIES -->
+    <properties>
+        <preDeploymentTestGroups>in-process</preDeploymentTestGroups>
+        <postDeploymentTestGroups>smoke</postDeploymentTestGroups>
+        <github.organization>entando-k8s</github.organization>
+        <sonar.junit.reportPaths>target/surefire-reports</sonar.junit.reportPaths>
+        <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
+        <entando-k8s-operator-common.version>7.0.0-ENG-2969-PR-75</entando-k8s-operator-common.version>
+        <skipLicenseDownload>true</skipLicenseDownload>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -161,9 +153,9 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>entando-k8s-operator-common</artifactId>
             <version>${entando-k8s-operator-common.version}</version>
-            <scope>test</scope>
             <type>test-jar</type>
             <classifier>tests</classifier>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
@@ -171,6 +163,49 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <repositories>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>jx-releases</id>
+            <url>https://nexus-jx.apps.serv.run/repository/maven-releases/</url>
+        </repository>
+    </repositories>
+    <!-- BUILD -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>info.picocli</groupId>
+                            <artifactId>picocli-codegen</artifactId>
+                            <version>4.6.2</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.8.2</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M1</version>
+            </plugin>
+        </plugins>
+    </build>
     <profiles>
         <profile>
             <id>native</id>
@@ -183,13 +218,4 @@
         </profile>
     </profiles>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>2.8.2</version>
-            </plugin>
-        </plugins>
-    </build>
 </project>

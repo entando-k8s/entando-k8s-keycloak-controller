@@ -4,11 +4,14 @@ import static io.qameta.allure.Allure.step;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.LocalPortForward;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
+import org.entando.kubernetes.controller.spi.common.EntandoOperatorConfigBase;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
 import org.entando.kubernetes.controller.support.client.impl.DefaultKeycloakClient;
@@ -35,6 +38,8 @@ class KeycloakControllerSmokeTest implements FluentIntegrationTesting {
 
     private static final String MY_NAMESPACE = EntandoOperatorTestConfig.calculateNameSpace("my-namespace");
     public static final String MY_KEYCLOAK = EntandoOperatorTestConfig.calculateName("my-keycloak");
+    public static final String MY_KEYCLOAK_IMAGE = EntandoOperatorConfigBase.lookupProperty("entando.test.keycloak.image.override")
+            .orElse("");
     private EntandoKeycloakServer entandoKeycloakServer;
     private final SupportProducer supportProducer = new SupportProducer();
     private final KubernetesClient client = supportProducer.getKubernetesClient();
@@ -47,27 +52,24 @@ class KeycloakControllerSmokeTest implements FluentIntegrationTesting {
             TestFixturePreparation.prepareTestFixture(client, deleteAll(EntandoKeycloakServer.class).fromNamespace(MY_NAMESPACE));
         });
         step("And I have created an EntandoKeycloakServer custom resource", () -> {
-            this.entandoKeycloakServer = supportProducer.entandoResourceClient()
-                    .createOrPatchEntandoResource(
-                            new EntandoKeycloakServerBuilder()
-                                    .withNewMetadata()
-                                    .withNamespace(MY_NAMESPACE)
-                                    .withName(MY_KEYCLOAK)
-                                    .endMetadata()
-                                    .withNewSpec()
-                                    .withStandardImage(StandardKeycloakImage.KEYCLOAK)
-                                    .withDbms(DbmsVendor.EMBEDDED)
-                                    .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY)
-                                    .endSpec()
-                                    .build()
-                    );
+            var builder = new EntandoKeycloakServerBuilder().withNewMetadata().withNamespace(MY_NAMESPACE).withName(MY_KEYCLOAK)
+                    .endMetadata().withNewSpec().withStandardImage(StandardKeycloakImage.KEYCLOAK).withDbms(DbmsVendor.EMBEDDED)
+                    .withProvisioningStrategy(CapabilityProvisioningStrategy.DEPLOY_DIRECTLY).endSpec();
+
+            if (!MY_KEYCLOAK_IMAGE.isEmpty()) {
+                builder.editMetadata()
+                        .withAnnotations(Collections.singletonMap("image-override.entando.org/entando-keycloak", MY_KEYCLOAK_IMAGE))
+                        .endMetadata();
+            }
+
+            this.entandoKeycloakServer = supportProducer.entandoResourceClient().createOrPatchEntandoResource(builder.build());
         });
         step("When I run the entando-k8s-keycloak-controller container against the EntandoKeycloakServer", () -> {
-            ControllerExecutor executor = new ControllerExecutor(MY_NAMESPACE, simpleK8SClient,
-                    r -> "entando-k8s-keycloak-controller");
+            ControllerExecutor executor = new ControllerExecutor(MY_NAMESPACE, simpleK8SClient, r -> "entando-k8s-keycloak-controller");
             executor.runControllerFor(Action.ADDED, entandoKeycloakServer,
                     EntandoOperatorTestConfig.getVersionOfImageUnderTest().orElse("0.0.0-2"));
         });
+
         step("Then I can successfully login into the newly deployed Keycloak server", () -> {
             final ProvidedCapability capability = supportProducer.entandoResourceClient()
                     .load(ProvidedCapability.class, entandoKeycloakServer.getMetadata().getNamespace(),
@@ -75,11 +77,19 @@ class KeycloakControllerSmokeTest implements FluentIntegrationTesting {
             final ProvidedSsoCapability ssoCapability = new ProvidedSsoCapability(
                     simpleK8SClient.capabilities().buildCapabilityProvisioningResult(capability));
             final DefaultKeycloakClient keycloakClient = new DefaultKeycloakClient();
-            keycloakClient.login(ssoCapability.getExternalBaseUrl(),
+
+            var portForward = forwardKeycloakPort();
+            keycloakClient.login("http://localhost:" + portForward.getLocalPort() + "/auth",
                     decode(ssoCapability.getAdminSecret(), SecretUtils.USERNAME_KEY),
                     decode(ssoCapability.getAdminSecret(), SecretUtils.PASSSWORD_KEY));
             keycloakClient.ensureRealm("my-realm");
         });
+    }
+
+    private LocalPortForward forwardKeycloakPort() {
+        String name = client.pods().inNamespace(MY_NAMESPACE).withLabel("entando.org/deployment")
+                .list().getItems().get(0).getMetadata().getName();
+        return client.pods().inNamespace(MY_NAMESPACE).withName(name).portForward(8080, 0);
     }
 
     private String decode(Secret secret, String usernameKey) {

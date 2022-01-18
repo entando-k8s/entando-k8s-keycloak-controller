@@ -183,7 +183,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             final Container theInitContainer = dbPreparationPod.getSpec().getInitContainers().get(0);
             step("using a cluster local connection to the database Service", () -> {
                 assertThat(theVariableNamed("DATABASE_SERVER_HOST").on(theInitContainer))
-                        .isEqualTo("default-postgresql-dbms-in-namespace-service.my-namespace.svc.cluster.local");
+                        .isEqualTo("default-postgresql-dbms-in-namespace-service." + MY_NAMESPACE + ".svc.cluster.local");
                 assertThat(theVariableNamed("DATABASE_SERVER_PORT").on(theInitContainer))
                         .isEqualTo(String.valueOf(DbmsVendorConfig.POSTGRESQL.getDefaultPort()));
             });
@@ -277,7 +277,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             step("and the connection details for the database service are provided following the standard EAP Container conventions",
                     () -> {
                         assertThat(theVariableNamed("DB_POSTGRESQL_SERVICE_HOST").on(thePrimaryContainerOn(deployment)))
-                                .isEqualTo("default-postgresql-dbms-in-namespace-service.my-namespace.svc.cluster.local");
+                                .isEqualTo("default-postgresql-dbms-in-namespace-service." + MY_NAMESPACE + ".svc.cluster.local");
                         assertThat(theVariableNamed("DB_POSTGRESQL_SERVICE_PORT").on(thePrimaryContainerOn(deployment)))
                                 .isEqualTo(String.valueOf(DbmsVendorConfig.POSTGRESQL.getDefaultPort()));
                         assertThat(theVariableNamed("DB_SERVICE_PREFIX_MAPPING").on(thePrimaryContainerOn(deployment)))
@@ -326,9 +326,9 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
                     getClient().entandoResources().loadCapabilityProvisioningResult(
                             providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
-            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
+            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
-                    .contains("http://my-keycloak-service.my-namespace.svc.cluster.local:8080/auth");
+                    .contains("http://my-keycloak-service." + MY_NAMESPACE + ".svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
             assertThat(connectionConfig.getPassword()).isNotBlank();
         });
@@ -508,7 +508,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             assertThat(
                     entandoKeycloakServer.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get().getEntandoControllerFailure()
                             .get().getDetailMessage())
-                    .contains("Could not prepare a DBMS capability for SSO my-namespace/my-keycloak");
+                    .contains("Could not prepare a DBMS capability for SSO " + MY_NAMESPACE + "/my-keycloak");
             attachKubernetesResource("Failed EntandoKeycloakServer", entandoKeycloakServer);
         });
         step("And the 'db' ServerStatus carries the original failure", () -> {
@@ -524,9 +524,9 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         });
         step("And this exception was logged as SEVERE", () -> {
             assertThat(LogInterceptor.getLogRecords())
-                    .anyMatch(r -> r.getMessage().contains("Could not prepare a DBMS capability for SSO my-namespace/my-keycloak"));
+                    .anyMatch(r -> r.getMessage().contains("Could not prepare a DBMS capability for SSO " + MY_NAMESPACE + "/my-keycloak"));
             final LogRecord logRecord = LogInterceptor.getLogRecords().stream()
-                    .filter(r -> r.getMessage().contains("Could not prepare a DBMS capability for SSO my-namespace/my-keycloak"))
+                    .filter(r -> r.getMessage().contains("Could not prepare a DBMS capability for SSO " + MY_NAMESPACE + "/my-keycloak"))
                     .findFirst()
                     .get();
             assertThat(logRecord.getLevel()).isEqualTo(Level.SEVERE);

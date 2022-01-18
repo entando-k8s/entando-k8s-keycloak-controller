@@ -3,6 +3,12 @@
 # Declare variables to be passed into your templates.
 replicaCount: 1
 image:
-  repository: draft
-  tag: dev
-  pullPolicy: IfNotPresent
+  tag: {{ENTANDO_IMAGE_TAG}}
+  repository: {{ENTANDO_IMAGE_REPO}}
+  pullPolicy: Always
+supportOpenshift311: false
+livenessProbe:
+  initialDelaySeconds: 60
+clusterScope: false
+generateClusterRoles: true
+namespacePlaceholder: {{ENTANDO_OPT_TEST_NAMESPACE}}
