@@ -21,7 +21,7 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>7.0.0-ENG-3175-PR-14</version>
+        <version>7.0.0-ENG-3214-PR-16</version>
         <relativePath/>
     </parent>
     <artifactId>entando-k8s-keycloak-controller</artifactId>
@@ -62,7 +62,7 @@
         <github.organization>entando-k8s</github.organization>
         <sonar.junit.reportPaths>target/surefire-reports</sonar.junit.reportPaths>
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>7.0.0-ENG-3175-PR-80</entando-k8s-operator-common.version>
+        <entando-k8s-operator-common.version>7.0.0-ENG-3214-PR-82</entando-k8s-operator-common.version>
         <skipLicenseDownload>true</skipLicenseDownload>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
