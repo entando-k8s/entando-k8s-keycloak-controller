@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
         + "know any of its implementation details to use it.")
 class KeycloakControllerSmokeTest implements FluentIntegrationTesting {
 
-    private static final String MY_NAMESPACE = EntandoOperatorTestConfig.calculateNameSpace("my-namespace");
+    private static final String MY_NAMESPACE = EntandoOperatorTestConfig.calculateNameSpace("test-entando-k8s-keycloak-controller");
     public static final String MY_KEYCLOAK = EntandoOperatorTestConfig.calculateName("my-keycloak");
     private EntandoKeycloakServer entandoKeycloakServer;
     private final SupportProducer supportProducer = new SupportProducer();
