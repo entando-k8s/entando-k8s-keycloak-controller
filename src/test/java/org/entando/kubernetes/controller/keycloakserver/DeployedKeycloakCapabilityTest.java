@@ -124,7 +124,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             final Container theInitContainer = dbPreparationPod.getSpec().getInitContainers().get(0);
             step("using a cluster local connection to the database Service", () -> {
                 assertThat(theVariableNamed("DATABASE_SERVER_HOST").on(theInitContainer))
-                        .isEqualTo("default-postgresql-dbms-in-namespace-service.my-namespace.svc.cluster.local");
+                        .isEqualTo("default-postgresql-dbms-in-namespace-service." + MY_NAMESPACE + ".svc.cluster.local");
                 assertThat(theVariableNamed("DATABASE_SERVER_PORT").on(theInitContainer))
                         .isEqualTo(String.valueOf(DbmsVendorConfig.POSTGRESQL.getDefaultPort()));
             });
@@ -214,7 +214,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             step("and the connection details for the database service are provided following the standard EAP Container conventions",
                     () -> {
                         assertThat(theVariableNamed("DB_POSTGRESQL_SERVICE_HOST").on(thePrimaryContainerOn(deployment)))
-                                .isEqualTo("default-postgresql-dbms-in-namespace-service.my-namespace.svc.cluster.local");
+                                .isEqualTo("default-postgresql-dbms-in-namespace-service." + MY_NAMESPACE + ".svc.cluster.local");
                         assertThat(theVariableNamed("DB_POSTGRESQL_SERVICE_PORT").on(thePrimaryContainerOn(deployment)))
                                 .isEqualTo(String.valueOf(DbmsVendorConfig.POSTGRESQL.getDefaultPort()));
                         assertThat(theVariableNamed("DB_SERVICE_PREFIX_MAPPING").on(thePrimaryContainerOn(deployment)))
@@ -272,9 +272,9 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
                             providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl())
-                    .isEqualTo("https://default-sso-in-namespace-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
+                    .isEqualTo("https://default-sso-in-namespace-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
-                    .contains("http://default-sso-in-namespace-service.my-namespace.svc.cluster.local:8080/auth");
+                    .contains("http://default-sso-in-namespace-service." + MY_NAMESPACE + ".svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
             assertThat(connectionConfig.getPassword()).isNotBlank();
         });
@@ -405,9 +405,9 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
                             providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl())
-                    .isEqualTo("https://default-sso-in-namespace-my-namespace." + THE_ROUTING_SUFFIX + "/auth");
+                    .isEqualTo("https://default-sso-in-namespace-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
-                    .contains("http://default-sso-in-namespace-service.my-namespace.svc.cluster.local:8080/auth");
+                    .contains("http://default-sso-in-namespace-service." + MY_NAMESPACE + ".svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
             assertThat(connectionConfig.getPassword()).isNotBlank();
         });
@@ -487,7 +487,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
             assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://myhost.com/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
-                    .contains("http://my-app-sso-service.my-namespace.svc.cluster.local:8080/auth");
+                    .contains("http://my-app-sso-service." + MY_NAMESPACE + ".svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
             assertThat(connectionConfig.getPassword()).isNotBlank();
         });
