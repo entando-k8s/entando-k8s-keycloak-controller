@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: entando-controllers-tests--special
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+    verbs:
+      - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: entando-controllers-tests--special
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: entando-controllers-tests--special
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ .Release.Namespace }}
