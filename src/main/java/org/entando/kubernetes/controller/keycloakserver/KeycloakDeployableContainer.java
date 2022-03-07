@@ -154,7 +154,8 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     public List<EnvVar> getDatabaseConnectionVariables() {
         List<EnvVar> vars = new ArrayList<>();
         if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer) == CapabilityProvisioningStrategy.DEPLOY_DIRECTLY) {
-            if (EntandoKeycloakHelper.determineDbmsVendor(keycloakServer) == DbmsVendor.EMBEDDED) {
+            DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(keycloakServer);
+            if (dbmsVendor == DbmsVendor.EMBEDDED) {
                 vars.add(new EnvVar("DB_VENDOR", "h2", null));
             } else {
                 DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo = databaseSchemaConnectionInfos.get(0);
@@ -167,14 +168,19 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
                     vars.add(new EnvVar("DB_SERVICE_PREFIX_MAPPING", format("db-%s=DB", driverName), null));
                     vars.add(new EnvVar("DB_USERNAME", null, databaseSchemaConnectionInfo.getUsernameRef()));
                 } else {
-
                     vars.add(new EnvVar("DB_ADDR", databaseSchemaConnectionInfo.getDatabaseServiceResult().getInternalServiceHostname(),
                             null));
                     vars.add(new EnvVar("DB_PORT", databaseSchemaConnectionInfo.getDatabaseServiceResult().getPort(), null));
                     vars.add(new EnvVar("DB_USER", null, databaseSchemaConnectionInfo.getUsernameRef()));
                 }
+
                 vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaConnectionInfo), null));
-                vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabaseNameToUse(), null));
+
+                if (dbmsVendor == DbmsVendor.MYSQL) {
+                    vars.add(new EnvVar("DB_DATABASE", null, databaseSchemaConnectionInfo.getUsernameRef()));
+                } else {
+                    vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabaseNameToUse(), null));
+                }
                 vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaConnectionInfo.getPasswordRef()));
                 vars.add(new EnvVar("JDBC_PARAMS",
                         databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
