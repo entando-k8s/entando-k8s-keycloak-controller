@@ -114,7 +114,7 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     @Override
     public int getMemoryLimitMebibytes() {
-        return 768;
+        return 1200;
     }
 
     @Override
