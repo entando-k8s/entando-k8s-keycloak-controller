@@ -21,6 +21,7 @@ import static java.util.Optional.ofNullable;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,7 +44,9 @@ import org.entando.kubernetes.controller.spi.container.ProvidedDatabaseCapabilit
 import org.entando.kubernetes.controller.spi.container.ProvidedSsoCapability;
 import org.entando.kubernetes.controller.spi.deployable.SsoConnectionInfo;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
+import org.entando.kubernetes.controller.support.client.SimpleK8SClient;
 import org.entando.kubernetes.controller.support.client.SimpleKeycloakClient;
+import org.entando.kubernetes.controller.support.client.impl.DefaultSimpleK8SClient;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.CapabilityRequirement;
 import org.entando.kubernetes.model.capability.CapabilityRequirementBuilder;
@@ -75,6 +78,7 @@ public class EntandoKeycloakServerController implements Runnable {
     private final KubernetesClientForControllers k8sClient;
     private final CapabilityProvider capabilityProvider;
     private final SimpleKeycloakClient keycloakClient;
+    private final SimpleK8SClient<?> simpleK8SClient;
     private final DeploymentProcessor deploymentProcessor;
     private static final Collection<Class<? extends EntandoCustomResource>> SUPPORTED_RESOURCE_KINDS = Arrays
             .asList(EntandoKeycloakServer.class, ProvidedCapability.class);
@@ -82,12 +86,14 @@ public class EntandoKeycloakServerController implements Runnable {
     private ProvidedCapability providedCapability;
 
     @Inject
-    public EntandoKeycloakServerController(KubernetesClientForControllers k8sClient, DeploymentProcessor deploymentProcessor,
-            CapabilityProvider capabilityProvider, SimpleKeycloakClient keycloakClient) {
+    public EntandoKeycloakServerController(KubernetesClientForControllers k8sClient,
+            DeploymentProcessor deploymentProcessor,
+            CapabilityProvider capabilityProvider, SimpleKeycloakClient keycloakClient, KubernetesClient kubeClient) {
         this.k8sClient = k8sClient;
         this.capabilityProvider = capabilityProvider;
         this.keycloakClient = keycloakClient;
         this.deploymentProcessor = deploymentProcessor;
+        this.simpleK8SClient = new DefaultSimpleK8SClient(kubeClient);
     }
 
     @Override
@@ -117,8 +123,10 @@ public class EntandoKeycloakServerController implements Runnable {
             }
             keycloakServer = k8sClient.deploymentStarted(keycloakServer);
             providedCapability = k8sClient.deploymentStarted(providedCapability);
-            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, provideDatabaseIfRequired(), resolveCaSecret());
-            KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable, KEYCLOAK_DEPLOYMENT_TIME);
+            KeycloakDeployable deployable = new KeycloakDeployable(keycloakServer, provideDatabaseIfRequired(),
+                    resolveCaSecret(), simpleK8SClient.secrets());
+            KeycloakDeploymentResult result = deploymentProcessor.processDeployable(deployable,
+                    KEYCLOAK_DEPLOYMENT_TIME);
             providedCapability = k8sClient.updateStatus(providedCapability, result.getStatus()
                     .withOriginatingCustomResource(providedCapability));
             keycloakServer = k8sClient.updateStatus(keycloakServer, result.getStatus()
