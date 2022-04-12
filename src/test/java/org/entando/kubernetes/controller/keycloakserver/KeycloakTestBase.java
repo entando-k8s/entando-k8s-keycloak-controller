@@ -17,9 +17,15 @@
 package org.entando.kubernetes.controller.keycloakserver;
 
 import static java.util.Optional.ofNullable;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretList;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -36,7 +42,9 @@ import org.entando.kubernetes.test.common.FluentTraversals;
 import org.entando.kubernetes.test.common.LogInterceptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Answers;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 
 abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelper {
 
@@ -51,6 +59,10 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     protected final ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
     @Mock
     private SimpleKeycloakClient keycloakClient;
+    @Mock
+    private KubernetesClient kubernetesClient;
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    private MixedOperation<Secret, SecretList, Resource<Secret>> secretOps;
 
     @Override
     public Optional<SimpleKeycloakClient> getKeycloakClient() {
@@ -68,7 +80,14 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     }
 
     @BeforeEach
-    void registerCrds() throws IOException {
+    void setup() throws IOException {
+        registerCrds();
+
+        kubernetesClient = Mockito.mock(KubernetesClient.class, Mockito.RETURNS_DEEP_STUBS);
+        when(kubernetesClient.secrets()).thenReturn(secretOps);
+    }
+
+    private void registerCrds() throws IOException {
         registerCrd("crd/providedcapabilities.entando.org.crd.yaml");
         registerCrd("crd/entandokeycloakservers.entando.org.crd.yaml");
         registerCrd("testresources.test.org.crd.yaml");
@@ -93,7 +112,8 @@ abstract class KeycloakTestBase implements FluentTraversals, ControllerTestHelpe
     @Override
     public Runnable createController(KubernetesClientForControllers kubernetesClientForControllers, DeploymentProcessor deploymentProcessor,
             CapabilityProvider capabilityProvider) {
-        return new EntandoKeycloakServerController(kubernetesClientForControllers, deploymentProcessor, capabilityProvider, keycloakClient);
+        return new EntandoKeycloakServerController(kubernetesClientForControllers, deploymentProcessor,
+                capabilityProvider, keycloakClient, kubernetesClient);
     }
 
 }
