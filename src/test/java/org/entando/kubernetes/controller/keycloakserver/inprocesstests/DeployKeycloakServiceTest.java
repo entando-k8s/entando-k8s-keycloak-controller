@@ -42,8 +42,8 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
-import io.fabric8.kubernetes.api.model.extensions.Ingress;
-import io.fabric8.kubernetes.api.model.extensions.IngressStatus;
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
+import io.fabric8.kubernetes.api.model.networking.v1.IngressStatus;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.quarkus.runtime.StartupEvent;
 import java.io.IOException;
@@ -329,8 +329,8 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         verify(client.ingresses()).createIngress(eq(newEntandoKeycloakServer), ingressArgumentCaptor.capture());
         Ingress resultingIngress = ingressArgumentCaptor.getValue();
         //With a path that reflects webcontext of Keycloak, mapped to the previously created service
-        assertThat(theBackendFor(AUTH).on(resultingIngress).getServicePort().getIntVal(), is(8080));
-        assertThat(theBackendFor(AUTH).on(resultingIngress).getServiceName(), is(MY_KEYCLOAK_SERVER_SERVICE));
+        assertThat(theBackendFor(AUTH).on(resultingIngress).getService().getPort().getNumber(), is(8080));
+        assertThat(theBackendFor(AUTH).on(resultingIngress).getService().getName(), is(MY_KEYCLOAK_SERVER_SERVICE));
         //And the Ingress state was reloaded from K8S
         verify(client.ingresses(), times(2))
                 .loadIngress(eq(newEntandoKeycloakServer.getMetadata().getNamespace()), eq(MY_KEYCLOAK_INGRESS));
@@ -585,7 +585,7 @@ class DeployKeycloakServiceTest implements InProcessTestUtil, FluentTraversals, 
         //And that K8S is up and receiving PVC requests
         PersistentVolumeClaimStatus dbPvcStatus = new PersistentVolumeClaimStatus();
         lenient().when(client.persistentVolumeClaims()
-                .loadPersistentVolumeClaim(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_DB_PVC)))
+                        .loadPersistentVolumeClaim(eq(newEntandoKeycloakServer), eq(MY_KEYCLOAK_DB_PVC)))
                 .then(respondWithPersistentVolumeClaimStatus(dbPvcStatus));
 
         //When the KeycloakController is notified that a new EntandoKeycloakServer has been added
