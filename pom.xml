@@ -24,7 +24,7 @@
         <version>6.3.18</version>
         <relativePath/>
     </parent>
-    <version>6.3.8</version>
+    <version>6.5.0</version>
     <artifactId>entando-k8s-keycloak-controller</artifactId>
     <name>Entando K8S Controller for Keycloak</name>
     <description>Entando's K8S Controller for Keycloak</description>
@@ -176,7 +176,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-deploy-plugin</artifactId>
         <version>2.8.2</version></plugin>
-    
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
