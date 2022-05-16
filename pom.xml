@@ -21,7 +21,7 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>7.0.0-ENG-3691-PR-28</version>
+        <version>7.0.0</version>
         <relativePath/>
     </parent>
     <version>7.0.2</version>
@@ -64,7 +64,9 @@
     <properties>
         <github.organization>entando-k8s</github.organization>
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>7.0.2-ENG-3691-PR-105</entando-k8s-operator-common.version>
+        <entando-k8s-operator-common.version>7.0.2</entando-k8s-operator-common.version>
+        <!-- manual override here not on quarkus parent to edit fewer projects -->
+        <keycloak-client.version>9.0.3</keycloak-client.version>
         <skipLicenseDownload>true</skipLicenseDownload>
         <preDeploymentTestGroups>in-process</preDeploymentTestGroups>
         <postDeploymentTestGroups>smoke</postDeploymentTestGroups>
@@ -88,10 +90,12 @@
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-admin-client</artifactId>
+            <version>${keycloak-client.version}</version>
         </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-core</artifactId>
+            <version>${keycloak-client.version}</version>
         </dependency>
 
         <!-- </required-by dependency="org.keycloakserver:keycloakserver-admin-client"> -->
