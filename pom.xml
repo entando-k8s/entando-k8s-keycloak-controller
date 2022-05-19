@@ -24,7 +24,7 @@
         <version>7.0.0</version>
         <relativePath/>
     </parent>
-    <version>7.0.2</version>
+    <version>6.5.0</version>
     <artifactId>entando-k8s-keycloak-controller</artifactId>
     <name>Entando K8S Controller for Keycloak</name>
     <description>Entando's K8S Controller for Keycloak</description>
