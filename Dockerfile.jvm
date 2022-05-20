@@ -10,11 +10,15 @@ LABEL name="Entando K8S Keycloak Controller" \
                    Subsequent executions of this container against the same EntandoKeycloakServer will patch the existing \
                    deployment resources"
 ENV JAVA_OPTIONS="-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
-# I prefer to delete everything not just the keycloak client to use mvn dependency calculation which is more secure
+
+# Reset the inherited classpath
 RUN rm -rf /deployments/lib
 COPY target/quarkus-app/lib /deployments/lib
-COPY target/quarkus-app/lib/main/org.entando.*.jar /deployments/lib/main/
+
+# Copy the quarkus app
 COPY target/quarkus-app/*.jar /deployments/
 COPY target/quarkus-app/app/ /deployments/app/
 COPY target/quarkus-app/quarkus/ /deployments/quarkus/
+
+# ~
 ENTRYPOINT [ "/deployments/run-java.sh" ]
