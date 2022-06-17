@@ -23,7 +23,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.extensions.Ingress;
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +35,7 @@ import org.entando.kubernetes.controller.spi.deployable.ExternalService;
 import org.entando.kubernetes.controller.spi.deployable.IngressingDeployable;
 import org.entando.kubernetes.controller.spi.deployable.Secretive;
 import org.entando.kubernetes.controller.spi.result.DatabaseConnectionInfo;
+import org.entando.kubernetes.controller.support.client.SecretClient;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.common.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
@@ -50,9 +51,11 @@ public class KeycloakDeployable
     private final List<DeployableContainer> containers;
     private Secret keycloakAdminSecret;
 
-    public KeycloakDeployable(EntandoKeycloakServer keycloakServer, DatabaseConnectionInfo databaseServiceResult, Secret caCertSecret) {
+    public KeycloakDeployable(EntandoKeycloakServer keycloakServer, DatabaseConnectionInfo databaseServiceResult,
+            Secret caCertSecret, SecretClient secretClient) {
         this.keycloakServer = keycloakServer;
-        this.containers = Collections.singletonList(new KeycloakDeployableContainer(keycloakServer, databaseServiceResult, caCertSecret));
+        this.containers = Collections.singletonList(
+                new KeycloakDeployableContainer(keycloakServer, databaseServiceResult, caCertSecret, secretClient));
         if (keycloakServer.getSpec().getAdminSecretName().isEmpty()) {
             this.keycloakAdminSecret = generateSecret(
                     this.keycloakServer,

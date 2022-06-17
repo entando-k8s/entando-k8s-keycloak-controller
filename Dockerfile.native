@@ -3,7 +3,7 @@ ARG VERSION
 LABEL name="Entando K8S Keycloak Controller" \
       vendor="Entando" \
       version="v${VERSION}" \
-      release="6" \
+      release="7.0" \
       summary="This container processes EntandoKeycloakServer custom resources." \
       description="This is a run-to-completion container. It will deploy a Keycloak or RedHat SSO service to your cluster. \
                    Subsequent executions of this container against the same EntandoKeycloakServer will patch the existing \
