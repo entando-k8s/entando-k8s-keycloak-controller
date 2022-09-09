@@ -25,8 +25,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.entando.kubernetes.controller.spi.common.DbmsVendorConfig;
 import org.entando.kubernetes.controller.spi.common.NameUtils;
 import org.entando.kubernetes.controller.spi.common.SecretUtils;
@@ -46,6 +48,8 @@ import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.common.EntandoResourceRequirements;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KeycloakDeployableContainer implements IngressingContainer, DbAwareContainer, PersistentVolumeAwareContainer,
         ParameterizableContainer, ConfigurableResourceContainer {
@@ -53,10 +57,12 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
     private static final String COMMUNITY_KEYCLOAK_IMAGE_NAME = "entando/entando-keycloak";
     public static final String REDHAT_SSO_IMAGE_NAME = "entando/entando-redhat-sso";
 
+    private static final Logger LOG = LoggerFactory.getLogger(KeycloakDeployableContainer.class);
     private final EntandoKeycloakServer keycloakServer;
     private final DatabaseConnectionInfo databaseServiceResult;
     private final Secret caCertSecret;
     private final List<DatabaseSchemaConnectionInfo> databaseSchemaConnectionInfos;
+    private static final String DB_SCHEMA_ENV_NAME = "DB_SCHEMA";
 
     public KeycloakDeployableContainer(EntandoKeycloakServer keycloakServer, DatabaseConnectionInfo databaseServiceResult,
             Secret caCertSecret, SecretClient secretClient) {
@@ -175,22 +181,54 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
                     vars.add(new EnvVar("DB_USER", null, databaseSchemaConnectionInfo.getUsernameRef()));
                 }
 
-                vars.add(new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaConnectionInfo), null));
+                vars.add(
+                        new EnvVar("DB_VENDOR", determineKeycloaksNonStandardDbVendorName(databaseSchemaConnectionInfo),
+                                null));
 
                 if (dbmsVendor == DbmsVendor.MYSQL) {
                     vars.add(new EnvVar("DB_DATABASE", null, databaseSchemaConnectionInfo.getUsernameRef()));
                 } else {
                     vars.add(new EnvVar("DB_DATABASE", databaseSchemaConnectionInfo.getDatabaseNameToUse(), null));
                 }
+
+                if (dbmsVendor == DbmsVendor.POSTGRESQL) {
+                    setSchemaForPostgresql(vars, databaseSchemaConnectionInfo);
+                }
+
                 vars.add(new EnvVar("DB_PASSWORD", null, databaseSchemaConnectionInfo.getPasswordRef()));
                 vars.add(new EnvVar("JDBC_PARAMS",
-                        databaseServiceResult.getJdbcParameters().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
+                        databaseServiceResult.getJdbcParameters().entrySet().stream()
+                                .map(entry -> entry.getKey() + "=" + entry.getValue())
                                 .collect(
                                         Collectors.joining("&")), null));
 
             }
         }
         return vars;
+    }
+
+    private void setSchemaForPostgresql(List<EnvVar> vars,
+            DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo) {
+        String envSchema = keycloakServer.getSpec().getEnvironmentVariables().stream()
+                .filter(e -> StringUtils.equals(DB_SCHEMA_ENV_NAME, e.getName()))
+                .map(EnvVar::getValue)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+
+        if (StringUtils.isNotBlank(envSchema)) {
+            LOG.debug("For db vendor:'{}' env var '{}' is not blank use it as schema:'{}'",
+                    DbmsVendor.POSTGRESQL,
+                    DB_SCHEMA_ENV_NAME,
+                    envSchema);
+            vars.add(new EnvVar(DB_SCHEMA_ENV_NAME, envSchema, null));
+        } else {
+            LOG.debug("For db vendor:'{}' env var '{}' is blank use db username as schema",
+                    DbmsVendor.POSTGRESQL,
+                    DB_SCHEMA_ENV_NAME);
+            vars.add(new EnvVar(DB_SCHEMA_ENV_NAME, null, databaseSchemaConnectionInfo.getUsernameRef()));
+        }
+
     }
 
     @Override
