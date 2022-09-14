@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
@@ -209,21 +208,15 @@ public class KeycloakDeployableContainer implements IngressingContainer, DbAware
 
     private void setSchemaForPostgresql(List<EnvVar> vars,
             DatabaseSchemaConnectionInfo databaseSchemaConnectionInfo) {
-        String envSchema = keycloakServer.getSpec().getEnvironmentVariables().stream()
-                .filter(e -> StringUtils.equals(DB_SCHEMA_ENV_NAME, e.getName()))
-                .map(EnvVar::getValue)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
+        boolean isEnvVarDbSchemaPresent = keycloakServer.getSpec().getEnvironmentVariables().stream()
+                .anyMatch(e -> StringUtils.equals(DB_SCHEMA_ENV_NAME, e.getName()));
 
-        if (StringUtils.isNotBlank(envSchema)) {
-            LOG.debug("For db vendor:'{}' env var '{}' is not blank use it as schema:'{}'",
+        if (isEnvVarDbSchemaPresent) {
+            LOG.debug("For db vendor:'{}' env var '{}' is not blank use it as schema do nothing",
                     DbmsVendor.POSTGRESQL,
-                    DB_SCHEMA_ENV_NAME,
-                    envSchema);
-            vars.add(new EnvVar(DB_SCHEMA_ENV_NAME, envSchema, null));
+                    DB_SCHEMA_ENV_NAME);
         } else {
-            LOG.debug("For db vendor:'{}' env var '{}' is blank use db username as schema",
+            LOG.info("For db vendor:'{}' env var '{}' is blank use db username as schema",
                     DbmsVendor.POSTGRESQL,
                     DB_SCHEMA_ENV_NAME);
             vars.add(new EnvVar(DB_SCHEMA_ENV_NAME, null, databaseSchemaConnectionInfo.getUsernameRef()));
