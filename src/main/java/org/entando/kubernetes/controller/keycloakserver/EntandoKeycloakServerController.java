@@ -32,7 +32,6 @@ import java.util.logging.Logger;
 import javax.inject.Inject;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvider;
 import org.entando.kubernetes.controller.spi.capability.CapabilityProvisioningResult;
-import org.entando.kubernetes.controller.spi.client.ExecutionResult;
 import org.entando.kubernetes.controller.spi.client.KubernetesClientForControllers;
 import org.entando.kubernetes.controller.spi.command.DeploymentProcessor;
 import org.entando.kubernetes.controller.spi.common.EntandoControllerException;
@@ -132,10 +131,6 @@ public class EntandoKeycloakServerController implements Runnable {
             keycloakServer = k8sClient.updateStatus(keycloakServer, result.getStatus()
                     .withOriginatingCustomResource(providedCapability));
             if (!result.getStatus().hasFailed()) {
-                if (EntandoKeycloakHelper.provisioningStrategyOf(keycloakServer)
-                        != CapabilityProvisioningStrategy.USE_EXTERNAL) {
-                    ensureHttpAccess(result);
-                }
                 final ServerStatus mainServerStatus = providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER)
                         .orElseThrow(IllegalStateException::new);
                 ensureKeycloakRealm(new ProvidedSsoCapability(k8sClient.loadCapabilityProvisioningResult(mainServerStatus)));
@@ -299,22 +294,7 @@ public class EntandoKeycloakServerController implements Runnable {
         return EntandoOperatorSpiConfig.getCertificateAuthoritySecretName()
                 .map(n -> (Secret) k8sClient.loadStandardResource(SECRET_KIND, k8sClient.getNamespace(), n)).orElse(null);
     }
-
-    private void ensureHttpAccess(KeycloakDeploymentResult serviceDeploymentResult) throws TimeoutException {
-        //Give the operator access over http for cluster.local calls
-        final ExecutionResult result = k8sClient.executeOnPod(serviceDeploymentResult.getPod(), "server-container", 30,
-                "cd \"${KEYCLOAK_HOME}/bin\"",
-                "./kcadm.sh config credentials --server http://localhost:8080/auth --realm master "
-                        + "--user  \"${KEYCLOAK_USER:-${SSO_ADMIN_USERNAME}}\" "
-                        + "--password \"${KEYCLOAK_PASSWORD:-${SSO_ADMIN_PASSWORD}}\"",
-                "./kcadm.sh update realms/master -s sslRequired=NONE"
-        );
-        if (result.hasFailed()) {
-            throw new EntandoControllerException("Could not disable Keycloak HTTPS requirement:" + String
-                    .join("\n", result.getOutputLines()));
-        }
-    }
-
+    
     private DatabaseConnectionInfo provideDatabaseIfRequired() throws TimeoutException {
         // Create database for Keycloak
         final DbmsVendor dbmsVendor = EntandoKeycloakHelper.determineDbmsVendor(keycloakServer);

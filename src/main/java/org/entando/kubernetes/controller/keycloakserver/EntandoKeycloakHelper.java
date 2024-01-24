@@ -1,6 +1,6 @@
 /*
  *
- * Copyright 2015-Present Entando Inc. (http://www.entando.com) All rights reserved.
+ * Copyright 2024-Present Entando Inc. (http://www.entando.com) All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,8 +20,6 @@ import static java.util.Optional.ofNullable;
 
 import java.util.Collections;
 import java.util.Map;
-import org.entando.kubernetes.controller.spi.common.EntandoOperatorComplianceMode;
-import org.entando.kubernetes.controller.spi.common.EntandoOperatorSpiConfig;
 import org.entando.kubernetes.model.capability.CapabilityProvisioningStrategy;
 import org.entando.kubernetes.model.capability.ExternallyProvidedService;
 import org.entando.kubernetes.model.capability.ProvidedCapability;
@@ -32,31 +30,14 @@ import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 public class EntandoKeycloakHelper {
 
     private EntandoKeycloakHelper() {
-
     }
 
     public static StandardKeycloakImage determineStandardImage(EntandoKeycloakServer entandoKeycloakServer) {
-        StandardKeycloakImage standardKeycloakImage;
-        if (EntandoOperatorSpiConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
-            standardKeycloakImage = StandardKeycloakImage.REDHAT_SSO;
-        } else {
-            standardKeycloakImage = entandoKeycloakServer.getSpec().getStandardImage().orElse(StandardKeycloakImage.KEYCLOAK);
-        }
-        return standardKeycloakImage;
-
+        return StandardKeycloakImage.KEYCLOAK;
     }
-
+    
     public static DbmsVendor determineDbmsVendor(EntandoKeycloakServer entandoKeycloakServer) {
-        DbmsVendor dbmsVendor;
-        if (EntandoOperatorSpiConfig.getComplianceMode() == EntandoOperatorComplianceMode.REDHAT) {
-            dbmsVendor = entandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.POSTGRESQL);
-        } else {
-            dbmsVendor = entandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.EMBEDDED);
-        }
-        if (dbmsVendor == DbmsVendor.NONE) {
-            dbmsVendor = DbmsVendor.EMBEDDED;
-        }
-        return dbmsVendor;
+        return entandoKeycloakServer.getSpec().getDbms().orElse(DbmsVendor.NONE);
     }
 
     public static String deriveFrontEndUrl(ProvidedCapability providedCapability) {
