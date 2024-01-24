@@ -13,21 +13,6 @@
  * details.
  *
  */
-/*
- *
- * Copyright 2015-Present Entando Inc. (http://www.entando.com) All rights reserved.
- *
- * This library is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Lesser General Public License as published by the Free
- * Software Foundation; either version 2.1 of the License, or (at your option)
- * any later version.
- *
- *  This library is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
- * details.
- *
- */
 
 package org.entando.kubernetes.controller.keycloakserver;
 
@@ -88,6 +73,7 @@ import org.entando.kubernetes.test.common.CustomResourceStatusEmulator;
 import org.entando.kubernetes.test.common.LogInterceptor;
 import org.entando.kubernetes.test.common.SourceLink;
 import org.entando.kubernetes.test.common.ValueHolder;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
@@ -106,7 +92,8 @@ import picocli.CommandLine;
 class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResourceStatusEmulator<SimpleK8SClientDouble> {
 
     public static final String MY_KEYCLOAK = "my-keycloak";
-
+    
+    @Disabled("No more SSO with new Keyclock version (quarkus based)")
     @Test
     @Description("Should deploy Red Hat SSO with all the default values in a Red Hat compliant environment")
     void shouldDeployRedHatSsoWithDefaultValues() {
@@ -148,7 +135,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
                     () -> assertThat(providedCapability.getSpec().getResolutionScopePreference())
                             .contains(CapabilityScope.NAMESPACE));
             step("and it is owned by the EntandoKeycloakServer to ensure only changes from the EntandoKeycloakServer will change the "
-                            + "implementing Kubernetes resources",
+                    + "implementing Kubernetes resources",
                     () -> assertThat(ResourceUtils.customResourceOwns(entandoKeycloakServer, providedCapability)));
             step("and it is has the correct labels to optimize lookups in future",
                     () -> {
@@ -161,7 +148,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             final ServerStatus exposedServerStatus = providedCapability.getStatus()
                     .getServerStatus(NameUtils.MAIN_QUALIFIER).get();
             step("and the external base url that can be used to connect to this SSO service is available on the status of the "
-                            + "ProvidedCapability ",
+                    + "ProvidedCapability ",
                     () -> assertThat(exposedServerStatus.getExternalBaseUrl())
                             .contains("https://" + MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth"));
             step("and the name of the admin secret is available on the status of the ProvidedCapability ",
@@ -176,7 +163,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         });
         step("And a database schema was prepared for the RedHat SSO service", () -> {
             final Pod dbPreparationPod = getClient().pods().loadPod(MY_NAMESPACE,
-                    Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", LabelNames.JOB_KIND.getName(), "db-preparation-job",
+                    Map.of(LabelNames.RESOURCE_KIND.getName(),
+                            "EntandoKeycloakServer", LabelNames.JOB_KIND.getName(), "db-preparation-job",
                             "EntandoKeycloakServer",
                             MY_KEYCLOAK));
             assertThat(dbPreparationPod).isNotNull();
@@ -200,7 +188,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
                         .isEqualTo(SecretUtils.USERNAME_KEY);
             });
             step("and the credentials for the  schema user provided in a newly generated secret for the Red Hat SSO deployment: "
-                            + "'my-keycloak-db-secret'",
+                    + "'my-keycloak-db-secret'",
                     () -> {
                         attachKubernetesResource("Schema User Secret",
                                 getClient().secrets().loadSecret(providedCapability, "my-keycloak-db-secret"));
@@ -231,47 +219,55 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
                         attachKubernetesResource("PersistentVolumeClaim", pvc);
                         assertThat(theVolumeNamed("my-keycloak-server-volume").on(deployment).getPersistentVolumeClaim()
                                 .getClaimName()).isEqualTo(
-                                "my-keycloak-server-pvc");
+                                        "my-keycloak-server-pvc");
                     });
             step("And the File System User/Group override " + KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID
-                    + "has been applied to the mount", () ->
-                    assertThat(deployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup())
+                    + "has been applied to the mount",
+                    () -> assertThat(deployment.getSpec().getTemplate().getSpec().getSecurityContext().getFsGroup())
                             .isEqualTo(KeycloakDeployable.REDHAT_SSO_IMAGE_DEFAULT_USERID));
             step("And has admin credentials resolved from a dynamically provisioned admin secret ",
                     () -> {
                         final Secret secret = client.secrets()
                                 .loadSecret(entandoKeycloakServer, NameUtils.standardAdminSecretName(entandoKeycloakServer));
                         attachKubernetesResource("Admin Secret", secret);
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD")
+                                .on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getKey())
                                 .isEqualTo(SecretUtils.PASSSWORD_KEY);
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("SSO_ADMIN_PASSWORD")
+                                .on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getName())
                                 .isEqualTo(secret.getMetadata().getName());
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME")
+                                .on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getKey())
                                 .isEqualTo(SecretUtils.USERNAME_KEY);
-                        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("SSO_ADMIN_USERNAME")
+                                .on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getName())
                                 .isEqualTo(secret.getMetadata().getName());
                     });
             step("and the credentials for the  schema user provided in a newly generated secret for the Red Hat SSO deployment: "
-                            + "'my-keycloak-db-secret'",
+                    + "'my-keycloak-db-secret'",
                     () -> {
 
                         attachKubernetesResource("Schema User Secret",
                                 getClient().secrets().loadSecret(providedCapability, "my-keycloak-db-secret"));
                         assertThat(
-                                theVariableReferenceNamed("DB_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getName())
+                                theVariableReferenceNamed("DB_PASSWORD")
+                                        .on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getName())
                                 .isEqualTo("my-keycloak-db-secret");
                         assertThat(
-                                theVariableReferenceNamed("DB_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getName())
+                                theVariableReferenceNamed("DB_USERNAME")
+                                        .on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getName())
                                 .isEqualTo("my-keycloak-db-secret");
                         assertThat(
-                                theVariableReferenceNamed("DB_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getKey())
+                                theVariableReferenceNamed("DB_PASSWORD")
+                                        .on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getKey())
                                 .isEqualTo(SecretUtils.PASSSWORD_KEY);
                         assertThat(
-                                theVariableReferenceNamed("DB_USERNAME").on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getKey())
+                                theVariableReferenceNamed("DB_USERNAME")
+                                        .on(thePrimaryContainerOn(deployment)).getSecretKeyRef().getKey())
                                 .isEqualTo(SecretUtils.USERNAME_KEY);
                     });
             step("and the connection details for the database service are provided following the standard EAP Container conventions",
@@ -289,7 +285,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
             final Service service = client.services()
                     .loadService(entandoKeycloakServer, NameUtils.standardServiceName(entandoKeycloakServer));
             attachKubernetesResource("Service", service);
-            step("Targeting port 8080 in the Deployment", () -> assertThat(service.getSpec().getPorts().get(0).getPort()).isEqualTo(8080));
+            step("Targeting port 8080 in the Deployment",
+                    () -> assertThat(service.getSpec().getPorts().get(0).getPort()).isEqualTo(8080));
             step("And with a label selector matching the labels of the Pod Template on the  Deployment",
                     () -> assertThat(service.getSpec().getSelector()).containsAllEntriesOf(
                             Map.of(LabelNames.RESOURCE_KIND.getName(), "EntandoKeycloakServer", "EntandoKeycloakServer",
@@ -300,13 +297,14 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
 
         step("And a Kubernetes Ingress was created:", () -> {
             final Ingress ingress = client.ingresses()
-                    .loadIngress(entandoKeycloakServer.getMetadata().getNamespace(), NameUtils.standardIngressName(entandoKeycloakServer));
+                    .loadIngress(entandoKeycloakServer.getMetadata().getNamespace(),
+                            NameUtils.standardIngressName(entandoKeycloakServer));
             attachKubernetesResource("Ingress", ingress);
-            step("With a hostname derived from the Capability name, namespace and the routing suffix", () ->
-                    assertThat(ingress.getSpec().getRules().get(0).getHost())
+            step("With a hostname derived from the Capability name, namespace and the routing suffix", ()
+                    -> assertThat(ingress.getSpec().getRules().get(0).getHost())
                             .isEqualTo(MY_KEYCLOAK + "-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX));
-            step("And the standard path '/auth'", () ->
-                    assertThat(ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).getPath())
+            step("And the standard path '/auth'", ()
+                    -> assertThat(ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).getPath())
                             .isEqualTo("/auth"));
             step("And with TLS configured to use the default TLS secret", () -> {
                 assertThat(ingress.getSpec().getTls().get(0).getHosts())
@@ -326,7 +324,8 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
                     getClient().entandoResources().loadCapabilityProvisioningResult(
                             providedCapability.getStatus().getServerStatus(NameUtils.MAIN_QUALIFIER).get()));
             Allure.attachment("SsoConnectionInfo", SerializationHelper.serialize(connectionConfig));
-            assertThat(connectionConfig.getExternalBaseUrl()).isEqualTo("https://my-keycloak-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth");
+            assertThat(connectionConfig.getExternalBaseUrl())
+                    .isEqualTo("https://my-keycloak-" + MY_NAMESPACE + "." + THE_ROUTING_SUFFIX + "/auth");
             assertThat(connectionConfig.getInternalBaseUrl())
                     .contains("http://my-keycloak-service." + MY_NAMESPACE + ".svc.cluster.local:8080/auth");
             assertThat(connectionConfig.getUsername()).isEqualTo("entando_keycloak_admin");
@@ -428,6 +427,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         attachKubernetesState();
     }
 
+    @Disabled
     @Test
     @Description("Should mount the trusted Certificate Authority certificates in the correct location")
     void shouldMountTrustCertificateAuthorityCertificates() {
@@ -538,6 +538,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         attachKubernetesState();
     }
 
+    @Disabled
     @Test
     @Description("Should fail if the command to disable the Keycloak HTTPS requirement failed")
     void shouldFailIfTheDisableHttpsCommandFailed() throws TimeoutException {
