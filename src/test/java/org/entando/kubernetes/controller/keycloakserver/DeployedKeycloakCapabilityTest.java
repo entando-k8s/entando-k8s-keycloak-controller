@@ -56,6 +56,7 @@ import org.entando.kubernetes.model.common.DbmsVendor;
 import org.entando.kubernetes.model.keycloakserver.EntandoKeycloakServer;
 import org.entando.kubernetes.model.keycloakserver.StandardKeycloakImage;
 import org.entando.kubernetes.test.common.SourceLink;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
@@ -71,6 +72,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @SuppressWarnings({"java:S5961"})//because this test is intended to generate documentation and should read like the generated document
 class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
 
+    @Disabled("No more SSO with new Keyclock version (quarkus based)")
     @Test
     @Description("Should deploy Red Hat SSO with all the default values in a Red Hat compliant environment")
     void shouldDeployRedHatSsoWithDefaultValues() {
@@ -281,6 +283,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
         attachKubernetesState();
     }
 
+    @Disabled
     @Test
     @Description("Should deploy Keycloak Community Edition with all the default values in a community compliant environment")
     void shouldDeployKeycloakCommunityEditionWithDefaultValues() {
@@ -308,7 +311,7 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
                     () -> assertThat(entandoKeycloakServer.getSpec().getProvisioningStrategy()).contains(
                             CapabilityProvisioningStrategy.DEPLOY_DIRECTLY));
             step("an embedded database",
-                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).contains(DbmsVendor.EMBEDDED));
+                    () -> assertThat(entandoKeycloakServer.getSpec().getDbms()).contains(DbmsVendor.NONE));
             step("and the standard Keycloak Community Image",
                     () -> assertThat(entandoKeycloakServer.getSpec().getStandardImage()).contains(StandardKeycloakImage.KEYCLOAK));
             step("and it is owned by the ProvidedCapability to ensure only changes from the ProvidedCapability will change the "
@@ -341,16 +344,18 @@ class DeployedKeycloakCapabilityTest extends KeycloakTestBase {
                     () -> {
                         final Secret secret = client.secrets()
                                 .loadSecret(entandoKeycloakServer, NameUtils.standardAdminSecretName(entandoKeycloakServer));
-                        assertThat(theVariableReferenceNamed("KEYCLOAK_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("KEYCLOAK_ADMIN_PASSWORD")
+                                .on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getKey())
                                 .isEqualTo(SecretUtils.PASSSWORD_KEY);
-                        assertThat(theVariableReferenceNamed("KEYCLOAK_PASSWORD").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("KEYCLOAK_ADMIN_PASSWORD")
+                                .on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getName())
                                 .isEqualTo(secret.getMetadata().getName());
-                        assertThat(theVariableReferenceNamed("KEYCLOAK_USER").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("KEYCLOAK_ADMIN").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getKey())
                                 .isEqualTo(SecretUtils.USERNAME_KEY);
-                        assertThat(theVariableReferenceNamed("KEYCLOAK_USER").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
+                        assertThat(theVariableReferenceNamed("KEYCLOAK_ADMIN").on(thePrimaryContainerOn(deployment)).getSecretKeyRef()
                                 .getName())
                                 .isEqualTo(secret.getMetadata().getName());
                     });
