@@ -21,10 +21,11 @@
     <parent>
         <groupId>org.entando</groupId>
         <artifactId>entando-quarkus-parent</artifactId>
-        <version>7.3.0</version>
+        <version>7.3.0-fix.1-ESB-513-PR-61</version>
+<!--        <version>7.3.0-fix.1</version>-->
         <relativePath/>
     </parent>
-    <version>7.3.0</version>
+    <version>7.3.0-fix.1</version>
     <artifactId>entando-k8s-keycloak-controller</artifactId>
     <name>Entando K8S Controller for Keycloak</name>
     <description>Entando's K8S Controller for Keycloak</description>
@@ -64,12 +65,12 @@
     <properties>
         <github.organization>entando-k8s</github.organization>
         <sonar.projectKey>${github.organization}_${project.artifactId}</sonar.projectKey>
-        <entando-k8s-operator-common.version>7.3.0</entando-k8s-operator-common.version>
+        <entando-k8s-operator-common.version>7.3.0-fix.1-ESB-513-PR-165</entando-k8s-operator-common.version>
+<!--        <entando-k8s-operator-common.version>7.3.0-fix.1</entando-k8s-operator-common.version>-->
         <skipLicenseDownload>true</skipLicenseDownload>
         <preDeploymentTestGroups>in-process</preDeploymentTestGroups>
         <postDeploymentTestGroups>smoke</postDeploymentTestGroups>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <sonar.skip>true</sonar.skip>
     </properties>
     <issueManagement>
         <system>Github</system>
@@ -82,6 +83,12 @@
             <version>${entando-k8s-operator-common.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!--
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-kubernetes-client</artifactId>
         </dependency>
@@ -93,8 +100,10 @@
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-core</artifactId>
         </dependency>
+        -->
 
         <!-- </required-by dependency="org.keycloakserver:keycloakserver-admin-client"> -->
+        <!--
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-client</artifactId>
@@ -107,6 +116,7 @@
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jackson2-provider</artifactId>
         </dependency>
+        -->
         <!-- </required-by> -->
 
         <!-- Test-scoped dependencies. -->
@@ -124,7 +134,6 @@
         <dependency>
             <groupId>com.oracle.ojdbc</groupId>
             <artifactId>ojdbc8</artifactId>
-            <version>19.3.0.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

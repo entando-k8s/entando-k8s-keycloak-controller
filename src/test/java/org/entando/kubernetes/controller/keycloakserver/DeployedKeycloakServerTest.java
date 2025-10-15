@@ -559,7 +559,7 @@ class DeployedKeycloakServerTest extends KeycloakTestBase implements CustomResou
         step("But the execution of the command to disable the Keycloak HTTPS requirement fails with the message: 'Execution failed!'",
                 () -> doAnswer(withFailedExecutionResult()))
                 .when(client.entandoResources())
-                .executeOnPod(any(), any(), anyInt(), any());
+                .executeOnPod(any(), any(), anyInt(), any(String[].class));
         ValueHolder<Throwable> throwable = new ValueHolder<>();
         step("When I create an EntandoKeycloakServer",
                 () -> throwable.set(catchThrowable(() -> runControllerAgainstCustomResource(entandoKeycloakServerHolder.get()))));

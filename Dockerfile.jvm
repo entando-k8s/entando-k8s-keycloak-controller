@@ -1,4 +1,5 @@
-FROM entando/entando-k8s-operator-common:7.3.0
+FROM entando/entando-k8s-operator-common:v7.3.0-fix.1-ESB-513-PR-165-BB-release-2F-7.3.0
+#FROM entando/entando-k8s-operator-common:7.3.0-fix.1
 
 ARG VERSION
 LABEL name="Entando K8S Keycloak Controller" \
